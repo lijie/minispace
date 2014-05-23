@@ -5,6 +5,7 @@ import "errors"
 // cmd
 const (
 	kCmdUserLogin = 1
+	kCmdUserUpdate = 2
 )
 
 // error
