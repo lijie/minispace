@@ -3,7 +3,7 @@
 package minispace
 
 import "code.google.com/p/go.net/websocket"
-import "time"
+import _ "time"
 import "errors"
 import "fmt"
 
@@ -19,6 +19,7 @@ type Client struct {
 	User
 	conn *websocket.Conn
 	enable bool
+	scene *Scene
 	msg Msg
 }
 
@@ -48,12 +49,22 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Msg, error) {
 	if err = websocket.JSON.Receive(conn, &c.msg); err != nil {
 		return nil, err
 	} else {
-		fmt.Println(c.msg)
+//		fmt.Println(c.msg)
 		return &c.msg, nil
 	}
 }
 
-func (c *Client) procMsg(msg *Msg) {
+func (c *Client) Reply(msg *Msg) {
+	fmt.Printf("reply %v\n", msg)
+	websocket.JSON.Send(c.conn, msg)
+}
+
+func (c *Client) ProcMsg(msg *Msg) {
+//	fmt.Println(*msg)
+	proc := procFuncArray[int(msg.Cmd)]
+	if proc != nil {
+		proc(c, msg)
+	}
 }
 
 func (c *Client) procTimeout() {
@@ -74,18 +85,21 @@ func (c *Client) readMsg(req_chan chan *Msg) {
 
 func (c *Client) Proc() {
 	defer c.Close()
+	ch, err := CurrentScene().AddClient(c)
+	if err != nil {
+		fmt.Printf("add client err")
+		return
+	}
 
-	req_chan := make(chan *Msg, 1)
-	go c.readMsg(req_chan)
-
-	for c.enable {
-		select {
-		case msg := <-req_chan:
-			c.procMsg(msg)
-		case <-time.After(300 * time.Second):
-			c.procTimeout()
+	for {
+		if _, err := c.readPacket(c.conn); err != nil {
+			c.enable = false
+			ch <- nil
+		} else {
+			ch <- c
 		}
 	}
+
 	return
 }
 

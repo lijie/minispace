@@ -40,8 +40,8 @@ var cocos2dApp = cc.Application.extend({
 
         cc.EGLView.getInstance()._adjustSizeToBrowser();
         var screenSize = cc.EGLView.getInstance().getFrameSize();
-        var resourceSize = cc.size(480, 800);
-        var designSize = cc.size(480, 800);
+        var resourceSize = cc.size(960, 640);
+        var designSize = cc.size(960, 640);
 
         var searchPaths = [];
         var resDirOrders = [];
@@ -54,14 +54,15 @@ var cocos2dApp = cc.Application.extend({
             resDirOrders.push("HD");
         }
         else if (platform == cc.TARGET_PLATFORM.PC_BROWSER) {
-            if (screenSize.height >= 800) {
-                resDirOrders.push("HD");
-            }
-            else {
-                resourceSize = cc.size(320, 480);
-                designSize = cc.size(320, 480);
-                resDirOrders.push("Normal");
-            }
+            resDirOrders.push("HD");
+//            if (screenSize.height >= 800) {
+//                resDirOrders.push("HD");
+//            }
+//            else {
+//                resourceSize = cc.size(320, 480);
+//                designSize = cc.size(320, 480);
+//                resDirOrders.push("Normal");
+//            }
         }
 
         cc.FileUtils.getInstance().setSearchResolutionsOrder(resDirOrders);

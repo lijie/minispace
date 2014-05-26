@@ -1,0 +1,127 @@
+package minispace
+
+import "sync"
+import "errors"
+import "time"
+import _ "fmt"
+
+type Scene struct {
+	clients [16]*Client
+	num int
+	cli_chan chan *Client
+	add_chan chan *Client
+	lock sync.Mutex
+	enable bool
+}
+
+type protoUser struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+	RO int `json:"ro"`
+	ID int `json:"id"`
+}
+
+type protoUserNotify struct {
+	Users []protoUser
+}
+
+var currentScene *Scene
+func init() {
+	currentScene = NewScene()
+}
+
+func CurrentScene() *Scene {
+	return currentScene
+}
+
+func (s *Scene) AddClient(c *Client) (chan *Client, error) {
+	c.scene = s
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.num >= 16 {
+		return nil, errors.New("Scene is full")
+	}
+
+	i := 0
+	for ; i < 16; i++ {
+		if s.clients[i] == nil {
+			s.clients[i] = c
+			break
+		}
+	}
+
+	if i >= 16 {
+		return nil, errors.New("Scene is full")
+	}
+
+	s.num++
+	return s.cli_chan, nil
+}
+
+func (s *Scene) notifyAll() {
+	if s.num == 0 {
+		return
+	}
+
+	var p protoUser
+	var c *Client
+	var n []protoUser
+	
+	for i := 0; i < 16; i++ {
+		if s.clients[i] == nil {
+			continue
+		}
+
+		c = s.clients[i]
+		p.Y = c.x
+		p.Y = c.y
+		p.RO = c.ro
+		p.ID = c.id
+
+		n = append(n, p)
+	}
+
+	var msg Msg
+	msg.Cmd = kCmdUserNotify
+	msg.Body = make(map[string]interface{})
+	msg.Body["users"] = n
+
+	for i := 0; i < 16; i++ {
+		if s.clients[i] == nil {
+			continue
+		}
+		s.clients[i].Reply(&msg)
+	}
+}
+
+func (s *Scene) procTimeout() {
+}
+
+func (s *Scene) Run() {
+	timer_ch := make(chan int, 1)
+
+	go func() {
+		for s.enable {
+			<-time.After(1 * time.Second)
+			timer_ch <- 1
+		}
+	}()
+
+	for s.enable {
+		select {
+		case c := <-s.cli_chan:
+			c.ProcMsg(&c.msg)
+		case _ = <- timer_ch:
+			s.notifyAll()
+		}
+	}
+}
+
+func NewScene() *Scene {
+	return &Scene{
+		enable: true,
+		cli_chan: make(chan *Client, 1024),
+	}
+}

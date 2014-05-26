@@ -6,6 +6,7 @@ import "errors"
 const (
 	kCmdUserLogin = 1
 	kCmdUserUpdate = 2
+	kCmdUserNotify = 3
 )
 
 // error

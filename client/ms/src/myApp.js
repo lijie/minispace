@@ -24,6 +24,11 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+KEY_UP = 87
+KEY_DOWN = 83
+KEY_LEFT = 65
+KEY_RIGHT = 68
+
 var Conn = cc.Class.extend({
     socket:null,
 
@@ -32,7 +37,9 @@ var Conn = cc.Class.extend({
 	socket.onopen = function(e) {}
 	socket.onclose = function(e) {}
 	socket.onerror = function(e) {}
-	socket.onmessage = function(e) {}
+	socket.onmessage = function(e) {
+	    console.log("message", e)
+	}
 	this.socket = socket
     },
 
@@ -103,26 +110,82 @@ var MyLayer = cc.Layer.extend({
 	this.addChild(this.ship, 1);
 
 	this.scheduleUpdate();
+	this.schedule(this.timeCallback, 0.05);
+	this.setKeyboardEnabled(true);
+    },
+
+    moveForward: function() {
+	ro = this.ship.getRotation() + 90;
+	if (ro < 0)
+	    ro = 360 + ro;
+	r = 5;
+	x = 5 * Math.sin(ro / 180 * Math.PI);
+	y = 5 * Math.cos(ro / 180 * Math.PI);
+
+	// console.log("ro", ro, "x", x, "y", y);
+	this.ship.setPosition(this.ship.getPositionX() + x, this.ship.getPositionY() + y);
+    },
+
+    moveBackward: function() {
+	ro = this.ship.getRotation() + 90;
+	if (ro < 0)
+	    ro = 360 + ro;
+	r = 5;
+	x = 5 * Math.sin(ro / 180 * Math.PI);
+	y = 5 * Math.cos(ro / 180 * Math.PI);
+
+	// console.log("ro", ro, "x", x, "y", y);
+	this.ship.setPosition(this.ship.getPositionX() - x, this.ship.getPositionY() - y);
+    },
+
+    onKeyUp: function(key) {
+	// console.log("key ", key);
+	start_move = false;
+    },
+
+    onKeyDown: function(key) {
+	// console.log("key ", key);
+	if (key == KEY_UP) {
+	    start_move = true;
+	    this.moveForward();
+	} else if (key == KEY_DOWN) {
+	    start_move = true;
+	    this.moveBackward();
+	} else if (key == KEY_RIGHT) {
+	    ro = this.ship.getRotation(this._shipro) + 4;
+	    if (ro >= 360)
+		ro = 0;
+	    this.ship.setRotation(ro);
+	} else if (key == KEY_LEFT) {
+	    ro = this.ship.getRotation() - 4;
+	    if (ro < 0)
+		ro = 360 + ro;
+	    this.ship.setRotation(ro);
+	}
     },
 
     update:function(dt) {
-	this.ship.setRotation(this._shipro);
-	this._shipro = this._shipro + 1
-	if (this._shipro > 356)
-	    this._shipro = 0;
-	if (this._shipro % 10 == 0)
-	    this.sendmsupdate()
+//	this.ship.setRotation(this._shipro);
+//	this._shipro = this._shipro + 1
+//	if (this._shipro > 356)
+//	    this._shipro = 0;
+//	if (this._shipro % 10 == 0)
+//	    this.sendmsupdate()
+    },
+
+    timeCallback: function(dt) {
+	this.sendmsupdate();
     },
 
     // add other player in current scene
     addplayer: function(player) {
-    }
+    },
 
     shoot: function() {	
-    }
+    },
 
     ishit: function() {
-    }
+    },
 
     sendmsupdate: function() {
 	var obj = {
