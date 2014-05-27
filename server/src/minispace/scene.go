@@ -67,6 +67,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	for ; i < 16; i++ {
 		if s.clients[i] == nil {
 			s.clients[i] = c
+			c.id = i
 			break
 		}
 	}
@@ -94,7 +95,11 @@ func (s *Scene) notifyAll() {
 		}
 
 		c = s.clients[i]
-		p.Y = c.x
+		if !c.login {
+			continue
+		}
+
+		p.X = c.x
 		p.Y = c.y
 		p.RO = c.ro
 		p.ID = c.id
@@ -102,16 +107,15 @@ func (s *Scene) notifyAll() {
 		n = append(n, p)
 	}
 
-	var msg Msg
+	msg := NewMsg()
 	msg.Cmd = kCmdUserNotify
-	msg.Body = make(map[string]interface{})
 	msg.Body["users"] = n
 
 	for i := 0; i < 16; i++ {
 		if s.clients[i] == nil {
 			continue
 		}
-		s.clients[i].Reply(&msg)
+		s.clients[i].Reply(msg)
 	}
 }
 
@@ -123,7 +127,7 @@ func (s *Scene) Run() {
 
 	go func() {
 		for s.enable {
-			<-time.After(1 * time.Second)
+			<-time.After(30 * time.Millisecond)
 			timer_ch <- 1
 		}
 	}()

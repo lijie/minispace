@@ -31,17 +31,54 @@ KEY_RIGHT = 68
 
 var Conn = cc.Class.extend({
     socket:null,
+    status:0,
 
     ctor:function() {
-	socket = new WebSocket("ws://127.0.0.1:12345/minispace")
-	socket.onopen = function(e) {}
+    },
+
+    start:function() {
+	socket = new WebSocket("ws://10.20.96.187:12345/minispace")
+	socket.onopen = function(e) {
+	    var obj = {
+		cmd: 1,
+		errcode: 0,
+		seq: 0,
+		userid: "lijie",
+	    }
+	    var str = JSON.stringify(obj, undefined, 2)
+	    socket.send(str)
+	}
+
 	socket.onclose = function(e) {}
 	socket.onerror = function(e) {}
+
 	socket.onmessage = function(e) {
 	    var obj = JSON.parse(e.data)
-	    console.log("obj", obj)
-	    console.log("body", obj.body.users[0])
+
+	    if (status == 0) {
+		status = 1;
+		console.log("id", obj.body.id);
+		myShip.setid(obj.body.id);
+		return;
+	    }
+
+	    for (var i = 0; i < obj.body.users.length; i++) {
+		s = obj.body.users[i];
+		if (s.id == myShip.id) {
+		    continue;
+		}
+
+		o = otherShips[s.id];
+		if (o == undefined || o == null) {
+		    otherShips[s.id] = new Ship();
+		    otherShips[s.id].setid(s.id);
+		    console.log("create other ship", s.id);
+		    shipLayer.createOtherShip(s.id);
+		}
+		otherShips[s.id].setPos(s.x, s.y, s.ro);
+	    }
 	}
+
 	this.socket = socket
     },
 
@@ -49,6 +86,46 @@ var Conn = cc.Class.extend({
 	this.socket.send(str);
     }
 });
+
+var Ship = cc.Class.extend({
+    x:0,
+    y:0,
+    ro:0,
+    id:-1,
+    sprite: null,
+
+    ctor:function() {
+    },
+
+    setPos:function(x, y, ro) {
+	this.x = x;
+	this.y = y;
+	this.ro = ro;
+    },
+
+    getX:function() {
+	return this.x;
+    },
+
+    getY:function() {
+	return this.y;
+    },
+
+    getRo:function() {
+	return this.ro;
+    },
+
+    setid:function(id) {
+	this.id = id;
+    },
+
+    getid:function() {
+	return this.id;
+    }
+});
+
+var myShip = new Ship();
+var otherShips = new Array(16);
 
 var MyLayer = cc.Layer.extend({
     isMouseDown:false,
@@ -58,7 +135,6 @@ var MyLayer = cc.Layer.extend({
     sprite:null,
     ship:null,
     _shipro:0,
-    ships:[],
     shipcount:0,
     conn:null,
 
@@ -116,6 +192,15 @@ var MyLayer = cc.Layer.extend({
 	this.setKeyboardEnabled(true);
     },
 
+    createOtherShip: function(id) {
+        var size = cc.Director.getInstance().getWinSize();
+	otherShips[id].sprite = cc.Sprite.create(s_ship);
+        otherShips[id].sprite.setAnchorPoint(0.5, 0.5);
+        otherShips[id].sprite.setPosition(size.width / 2, size.height / 2);
+	otherShips[id].sprite.setScale(0.5);
+	this.addChild(otherShips[id].sprite, 1);
+    },
+
     moveForward: function() {
 	ro = this.ship.getRotation() + 90;
 	if (ro < 0)
@@ -167,12 +252,15 @@ var MyLayer = cc.Layer.extend({
     },
 
     update:function(dt) {
-//	this.ship.setRotation(this._shipro);
-//	this._shipro = this._shipro + 1
-//	if (this._shipro > 356)
-//	    this._shipro = 0;
-//	if (this._shipro % 10 == 0)
-//	    this.sendmsupdate()
+	for (var i = 0; i < otherShips.length; i++) {
+	    if (i == myShip.getid())
+		continue;
+	    if (otherShips[i] == undefined || otherShips[i] == null)
+		continue;
+	    s = otherShips[i].sprite;
+	    s.setPosition(otherShips[i].getX(), otherShips[i].getY());
+	    s.setRotation(otherShips[i].getRo());
+	}
     },
 
     timeCallback: function(dt) {
@@ -194,24 +282,28 @@ var MyLayer = cc.Layer.extend({
 	    cmd: 2,
 	    errcode: 0,
 	    seq: 0,
-	    usserid: "lijie",
+	    userid: "lijie",
 	    body: {
 		x: this.ship.getPositionX(),
 		y: this.ship.getPositionY(),
 		ro: this.ship.getRotation()
 	    }
 	}
-	var str = JSON.stringify(obj, undefined, 2)
-	myConn.send(str)
+	var str = JSON.stringify(obj, undefined, 2);
+	myConn.send(str);
     }
 });
+
+var shipLayer = null;
 
 var MyScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
-        var layer = new MyLayer();
+	var layer = new MyLayer();
         this.addChild(layer);
         layer.init();
+	shipLayer = layer;
+	myConn.start();
     }
 });
 

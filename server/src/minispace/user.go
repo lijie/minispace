@@ -8,6 +8,7 @@ type User struct {
 
 func init() {
 	ClientProcRegister(kCmdUserUpdate, procUserUpdate)
+	ClientProcRegister(kCmdUserLogin, procUserLogin)
 }
 
 func procUserUpdate(c *Client, msg *Msg) int {
@@ -18,5 +19,10 @@ func procUserUpdate(c *Client, msg *Msg) int {
 }
 
 func procUserLogin(c *Client, msg *Msg) int {
+	c.login = true
+	reply := NewMsg()
+	reply.Cmd = kCmdUserLogin
+	reply.Body["id"] = c.id
+	c.Reply(reply)
 	return 0
 }

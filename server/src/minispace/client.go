@@ -40,6 +40,7 @@ type Client struct {
 	User
 	conn *websocket.Conn
 	enable bool
+	login bool
 	scene *Scene
 }
 
@@ -78,7 +79,7 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 }
 
 func (c *Client) Reply(msg *Msg) {
-	fmt.Printf("reply %v\n", msg)
+//	fmt.Printf("reply %v\n", msg)
 	websocket.JSON.Send(c.conn, msg)
 }
 
@@ -87,6 +88,7 @@ func (c *Client) ProcMsg(msg *Msg) {
 //	fmt.Println(*msg)
 	proc := procFuncArray[int(msg.Cmd)]
 	if proc != nil {
+//		fmt.Printf("proc %v\n", msg)
 		proc(c, msg)
 	}
 }
@@ -124,6 +126,7 @@ func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
 		conn: conn,
 		enable: true,
+		login: false,
 	}
 	return c
 }
