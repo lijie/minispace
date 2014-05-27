@@ -8,11 +8,32 @@ import "errors"
 import "fmt"
 
 type Msg struct {
-	Cmd float64
-	ErrCode float64
-	Seq float64
-	Userid string
-	Body map[string]interface{}
+	Cmd float64 `json:"cmd"`
+	ErrCode float64 `json:"errcode"`
+	Seq float64 `json:"seq"`
+	Userid string `json:"userid"`
+	Body map[string]interface{} `json:"body"`
+}
+
+type Packet struct {
+	msg Msg
+	client *Client
+	ok bool
+}
+
+func NewMsg() *Msg {
+	msg := &Msg{
+		Body: make(map[string]interface{}),
+	}
+	return msg
+}
+
+func NewPacket(c *Client) *Packet {
+	p := &Packet{
+		client: c,
+	}
+	p.msg.Body = make(map[string]interface{})
+	return p
 }
 
 type Client struct {
@@ -20,7 +41,6 @@ type Client struct {
 	conn *websocket.Conn
 	enable bool
 	scene *Scene
-	msg Msg
 }
 
 type ClientProc func(*Client, *Msg) int
@@ -44,13 +64,16 @@ func (c *Client) Close() {
 	c.conn.Close()
 }
 
-func (c *Client) readPacket(conn *websocket.Conn) (*Msg, error) {
+func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 	var err error
-	if err = websocket.JSON.Receive(conn, &c.msg); err != nil {
-		return nil, err
+	p := NewPacket(c)
+
+	p.ok = true
+	if err = websocket.JSON.Receive(conn, &p.msg); err != nil {
+		p.ok = false
+		return p, err
 	} else {
-//		fmt.Println(c.msg)
-		return &c.msg, nil
+		return p, nil
 	}
 }
 
@@ -59,6 +82,7 @@ func (c *Client) Reply(msg *Msg) {
 	websocket.JSON.Send(c.conn, msg)
 }
 
+// called in scene goroutine
 func (c *Client) ProcMsg(msg *Msg) {
 //	fmt.Println(*msg)
 	proc := procFuncArray[int(msg.Cmd)]
@@ -71,18 +95,6 @@ func (c *Client) procTimeout() {
 	c.enable = false
 }
 
-func (c *Client) readMsg(req_chan chan *Msg) {
-	for {
-		if msg, err := c.readPacket(c.conn); err != nil {
-			c.enable = false
-			req_chan <- nil
-			return
-		} else {
-			req_chan <- msg
-		}
-	}
-}
-
 func (c *Client) Proc() {
 	defer c.Close()
 	ch, err := CurrentScene().AddClient(c)
@@ -91,12 +103,17 @@ func (c *Client) Proc() {
 		return
 	}
 
+	var p *Packet
+
 	for {
-		if _, err := c.readPacket(c.conn); err != nil {
+		p, err = c.readPacket(c.conn)
+		// send packet to current scene
+		ch <- p
+
+		if err != nil || !p.ok {
+			// error, close conn
 			c.enable = false
-			ch <- nil
-		} else {
-			ch <- c
+			break
 		}
 	}
 

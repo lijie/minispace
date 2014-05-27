@@ -8,8 +8,7 @@ import _ "fmt"
 type Scene struct {
 	clients [16]*Client
 	num int
-	cli_chan chan *Client
-	add_chan chan *Client
+	cli_chan chan *Packet
 	lock sync.Mutex
 	enable bool
 }
@@ -34,7 +33,27 @@ func CurrentScene() *Scene {
 	return currentScene
 }
 
-func (s *Scene) AddClient(c *Client) (chan *Client, error) {
+func (s *Scene) DelClient(c *Client) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.num == 0 {
+		return
+	}
+
+	i := 0
+	for ; i < 16; i++ {
+		if s.clients[i] == c {
+			s.clients[i] = nil
+			s.num--
+			break
+		}
+	}
+
+	return
+}
+
+func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	c.scene = s
 
 	s.lock.Lock()
@@ -109,10 +128,17 @@ func (s *Scene) Run() {
 		}
 	}()
 
+	var p *Packet
 	for s.enable {
 		select {
-		case c := <-s.cli_chan:
-			c.ProcMsg(&c.msg)
+		case p = <-s.cli_chan:
+			if p != nil {
+				if p.ok {
+					p.client.ProcMsg(&p.msg)
+				} else {
+					s.DelClient(p.client)
+				}
+			}
 		case _ = <- timer_ch:
 			s.notifyAll()
 		}
@@ -122,6 +148,6 @@ func (s *Scene) Run() {
 func NewScene() *Scene {
 	return &Scene{
 		enable: true,
-		cli_chan: make(chan *Client, 1024),
+		cli_chan: make(chan *Packet, 1024),
 	}
 }

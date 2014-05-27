@@ -38,7 +38,9 @@ var Conn = cc.Class.extend({
 	socket.onclose = function(e) {}
 	socket.onerror = function(e) {}
 	socket.onmessage = function(e) {
-	    console.log("message", e)
+	    var obj = JSON.parse(e.data)
+	    console.log("obj", obj)
+	    console.log("body", obj.body.users[0])
 	}
 	this.socket = socket
     },
