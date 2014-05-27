@@ -18,6 +18,8 @@ type protoUser struct {
 	Y int `json:"y"`
 	RO int `json:"ro"`
 	ID int `json:"id"`
+	Move int `json:"move"`
+	Rotate int `json:"rotate"`
 }
 
 type protoUserNotify struct {
@@ -119,6 +121,8 @@ func (s *Scene) updateAll() {
 		p.X = c.x
 		p.Y = c.y
 		p.RO = c.ro
+		p.Move = c.move
+		p.Rotate = c.rotate
 		p.ID = c.id
 
 		n = append(n, p)
@@ -139,7 +143,7 @@ func (s *Scene) Run() {
 
 	go func() {
 		for s.enable {
-			<-time.After(30 * time.Millisecond)
+			<-time.After(50 * time.Millisecond)
 			timer_ch <- 1
 		}
 	}()

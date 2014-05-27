@@ -24,10 +24,19 @@
  THE SOFTWARE.
  ****************************************************************************/
 
+// const
 KEY_UP = 87
 KEY_DOWN = 83
 KEY_LEFT = 65
 KEY_RIGHT = 68
+
+MOVE_NONE = 0
+MOVE_FORWARD = 1
+MOVE_BACKWARD = 2
+
+ROTATE_NONE = 0
+ROTATE_LEFT = 1
+ROTATE_RIGHT = 2
 
 var Conn = cc.Class.extend({
     socket:null,
@@ -122,6 +131,7 @@ var Conn = cc.Class.extend({
 		shipLayer.createOtherShip(s.id);
 	    }
 	    otherShips[s.id].setPos(s.x, s.y, s.ro);
+	    otherShips[s.id].setMove(s.move, s.rotate);
 	}
     },
 
@@ -136,6 +146,8 @@ var Ship = cc.Class.extend({
     ro:0,
     id:-1,
     sprite: null,
+    move: MOVE_NONE,
+    rotate: ROTATE_NONE,
 
     ctor:function() {
     },
@@ -144,6 +156,20 @@ var Ship = cc.Class.extend({
 	this.x = x;
 	this.y = y;
 	this.ro = ro;
+    },
+
+    synstep: 0,
+    updatePos:function() {
+	if (this.synstep % 10 == 0) {
+	    this.sprite.setPosition(this.x, this.y);
+	    this.sprite.setRotation(this.ro);
+	}
+	this.synstep++;
+    },
+
+    setMove:function(m, r) {
+	this.move = m;
+	this.rotate = r;
     },
 
     getX:function() {
@@ -164,6 +190,60 @@ var Ship = cc.Class.extend({
 
     getid:function() {
 	return this.id;
+    },
+
+    moveForward: function(dt) {
+	ro = this.sprite.getRotation() + 90;
+	if (ro < 0)
+	    ro = 360 + ro;
+	r = 80 * dt;
+	x = r * Math.sin(ro / 180 * Math.PI);
+	y = r * Math.cos(ro / 180 * Math.PI);
+
+	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
+    },
+
+    moveBackward: function(dt) {
+	ro = this.sprite.getRotation() + 90;
+	if (ro < 0)
+	    ro = 360 + ro;
+	r = 80 * dt;
+	x = r * Math.sin(ro / 180 * Math.PI);
+	y = r * Math.cos(ro / 180 * Math.PI);
+
+	this.sprite.setPosition(this.sprite.getPositionX() - x, this.sprite.getPositionY() - y);
+    },
+
+    moveLRotate: function(dt) {
+	ro = this.sprite.getRotation() - (80 * dt);
+	if (ro < 0)
+	    ro = 360 + ro;
+	this.sprite.setRotation(ro);
+    },
+
+    moveRRotate: function(dt) {
+	ro = this.sprite.getRotation() + (80 * dt);
+	if (ro >= 360)
+	    ro = ro - 360;
+	this.sprite.setRotation(ro);
+    },
+
+    sendmsupdate: function() {
+	var obj = {
+	    cmd: 2,
+	    errcode: 0,
+	    seq: 0,
+	    userid: "lijie",
+	    body: {
+		x: this.sprite.getPositionX(),
+		y: this.sprite.getPositionY(),
+		ro: this.sprite.getRotation(),
+		move: this.move,
+		rotate: this.rotate
+	    }
+	}
+	var str = JSON.stringify(obj, undefined, 2);
+	myConn.send(str);
     }
 });
 
@@ -175,10 +255,9 @@ var MyLayer = cc.Layer.extend({
     helloImg:null,
     helloLabel:null,
     circle:null,
-    sprite:null,
-    ship:null,
+//  sprite:null,
+//  ship:null,
     _shipro:0,
-    shipcount:0,
     conn:null,
 
     init:function () {
@@ -217,18 +296,11 @@ var MyLayer = cc.Layer.extend({
 //        // add the label as a child to this layer
 //        this.addChild(this.helloLabel, 5);
 
-        // add "Helloworld" splash screen"
-//        this.sprite = cc.Sprite.create(s_HelloWorld);
-//        this.sprite.setAnchorPoint(0.5, 0.5);
-//        this.sprite.setPosition(size.width / 2, size.height / 2);
-//        this.sprite.setScale(size.height/this.sprite.getContentSize().height);
-//        this.addChild(this.sprite, 0);
-
-	this.ship = cc.Sprite.create(s_ship);
-        this.ship.setAnchorPoint(0.5, 0.5);
-        this.ship.setPosition(size.width / 2, size.height / 2);
-	this.ship.setScale(0.5);
-	this.addChild(this.ship, 1);
+	myShip.sprite = cc.Sprite.create(s_ship);
+        myShip.sprite.setAnchorPoint(0.5, 0.5);
+        myShip.sprite.setPosition(size.width / 2, size.height / 2);
+	myShip.sprite.setScale(0.5);
+	this.addChild(myShip.sprite, 1);
 
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 0.05);
@@ -254,70 +326,70 @@ var MyLayer = cc.Layer.extend({
 	otherShips[id] = null;
     },
 
-    moveForward: function() {
-	ro = this.ship.getRotation() + 90;
-	if (ro < 0)
-	    ro = 360 + ro;
-	r = 5;
-	x = 5 * Math.sin(ro / 180 * Math.PI);
-	y = 5 * Math.cos(ro / 180 * Math.PI);
-
-	// console.log("ro", ro, "x", x, "y", y);
-	this.ship.setPosition(this.ship.getPositionX() + x, this.ship.getPositionY() + y);
-    },
-
-    moveBackward: function() {
-	ro = this.ship.getRotation() + 90;
-	if (ro < 0)
-	    ro = 360 + ro;
-	r = 5;
-	x = 5 * Math.sin(ro / 180 * Math.PI);
-	y = 5 * Math.cos(ro / 180 * Math.PI);
-
-	// console.log("ro", ro, "x", x, "y", y);
-	this.ship.setPosition(this.ship.getPositionX() - x, this.ship.getPositionY() - y);
-    },
-
     onKeyUp: function(key) {
 	// console.log("key ", key);
-	start_move = false;
-    },
-
-    onKeyDown: function(key) {
-	// console.log("key ", key);
 	if (key == KEY_UP) {
-	    start_move = true;
-	    this.moveForward();
+	    myShip.move = MOVE_NONE;
 	} else if (key == KEY_DOWN) {
-	    start_move = true;
-	    this.moveBackward();
-	} else if (key == KEY_RIGHT) {
-	    ro = this.ship.getRotation(this._shipro) + 4;
-	    if (ro >= 360)
-		ro = 0;
-	    this.ship.setRotation(ro);
+	    myShip.move = MOVE_NONE;
 	} else if (key == KEY_LEFT) {
-	    ro = this.ship.getRotation() - 4;
-	    if (ro < 0)
-		ro = 360 + ro;
-	    this.ship.setRotation(ro);
+	    myShip.rotate = ROTATE_NONE;
+	} else if (key == KEY_RIGHT) {
+	    myShip.rotate = ROTATE_NONE;
 	}
     },
 
-    update:function(dt) {
+    onKeyDown: function(key) {
+	if (key == KEY_UP) {
+	    myShip.move = MOVE_FORWARD;
+	} else if (key == KEY_DOWN) {
+	    myShip.move = MOVE_BACKWARD;
+	} else if (key == KEY_RIGHT) {
+	    myShip.rotate = ROTATE_RIGHT;
+	} else if (key == KEY_LEFT) {
+	    myShip.rotate = ROTATE_LEFT;
+	}
+    },
+
+    moveSprite: function(sp, dt, setpos) {
+	if (setpos) {
+	    sp.updatePos();
+	}
+
+	if (sp.move == MOVE_FORWARD) {
+	    sp.moveForward(dt);
+	}
+	if (sp.move == MOVE_BACKWARD) {
+	    sp.moveBackward(dt);
+	}
+	if (sp.rotate == ROTATE_LEFT) {
+	    sp.moveLRotate(dt);
+	}
+	if (sp.rotate == ROTATE_RIGHT) {
+	    sp.moveRRotate(dt);
+	}
+    },
+
+    moveShips: function(dt) {
+	// move self
+	this.moveSprite(myShip, dt, false);
+
+	// move others
 	for (var i = 0; i < otherShips.length; i++) {
 	    if (i == myShip.getid())
 		continue;
 	    if (otherShips[i] == undefined || otherShips[i] == null)
 		continue;
-	    s = otherShips[i].sprite;
-	    s.setPosition(otherShips[i].getX(), otherShips[i].getY());
-	    s.setRotation(otherShips[i].getRo());
+	    this.moveSprite(otherShips[i], dt, true);
 	}
     },
 
+    update:function(dt) {
+	this.moveShips(dt);
+    },
+
     timeCallback: function(dt) {
-	this.sendmsupdate();
+	myShip.sendmsupdate();
     },
 
     // add other player in current scene
@@ -328,22 +400,6 @@ var MyLayer = cc.Layer.extend({
     },
 
     ishit: function() {
-    },
-
-    sendmsupdate: function() {
-	var obj = {
-	    cmd: 2,
-	    errcode: 0,
-	    seq: 0,
-	    userid: "lijie",
-	    body: {
-		x: this.ship.getPositionX(),
-		y: this.ship.getPositionY(),
-		ro: this.ship.getRotation()
-	    }
-	}
-	var str = JSON.stringify(obj, undefined, 2);
-	myConn.send(str);
     }
 });
 
