@@ -7,6 +7,7 @@ const (
 	kCmdUserLogin = 1
 	kCmdUserUpdate = 2
 	kCmdUserNotify = 3
+	kCmdUserKick = 4
 )
 
 // error

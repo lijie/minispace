@@ -50,6 +50,14 @@ func (s *Scene) DelClient(c *Client) {
 		}
 	}
 
+	if i >= 16 {
+		return
+	}
+
+	reply := NewMsg()
+	reply.Cmd = kCmdUserKick
+	reply.Body["id"] = i
+	s.notifyAll(reply)
 	return
 }
 
@@ -80,7 +88,16 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	return s.cli_chan, nil
 }
 
-func (s *Scene) notifyAll() {
+func (s *Scene) notifyAll(msg *Msg) {
+	for i := 0; i < 16; i++ {
+		if s.clients[i] == nil {
+			continue
+		}
+		s.clients[i].Reply(msg)
+	}
+}
+
+func (s *Scene) updateAll() {
 	if s.num == 0 {
 		return
 	}
@@ -111,12 +128,7 @@ func (s *Scene) notifyAll() {
 	msg.Cmd = kCmdUserNotify
 	msg.Body["users"] = n
 
-	for i := 0; i < 16; i++ {
-		if s.clients[i] == nil {
-			continue
-		}
-		s.clients[i].Reply(msg)
-	}
+	s.notifyAll(msg)
 }
 
 func (s *Scene) procTimeout() {
@@ -144,7 +156,7 @@ func (s *Scene) Run() {
 				}
 			}
 		case _ = <- timer_ch:
-			s.notifyAll()
+			s.updateAll()
 		}
 	}
 }

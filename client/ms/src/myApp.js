@@ -34,6 +34,32 @@ var Conn = cc.Class.extend({
     status:0,
 
     ctor:function() {
+	this.ontest();
+    },
+
+    ontest: function() {
+	console.log("ontest");
+    },
+
+    onNetMessage: function(e) {
+	var obj = JSON.parse(e.data)
+
+	if (status == 0) {
+	    status = 1;
+	    console.log("id", obj.body.id);
+	    myShip.setid(obj.body.id);
+	    return;
+	}
+
+	if (obj.cmd == 3) {
+	    myConn.msupdate(obj);
+	    return;
+	}
+
+	if (obj.cmd == 4) {
+	    myConn.procKick(obj);
+	    return;
+	}
     },
 
     start:function() {
@@ -52,38 +78,55 @@ var Conn = cc.Class.extend({
 	socket.onclose = function(e) {}
 	socket.onerror = function(e) {}
 
-	socket.onmessage = function(e) {
-	    var obj = JSON.parse(e.data)
-
-	    if (status == 0) {
-		status = 1;
-		console.log("id", obj.body.id);
-		myShip.setid(obj.body.id);
-		return;
-	    }
-
-	    for (var i = 0; i < obj.body.users.length; i++) {
-		s = obj.body.users[i];
-		if (s.id == myShip.id) {
-		    continue;
-		}
-
-		o = otherShips[s.id];
-		if (o == undefined || o == null) {
-		    otherShips[s.id] = new Ship();
-		    otherShips[s.id].setid(s.id);
-		    console.log("create other ship", s.id);
-		    shipLayer.createOtherShip(s.id);
-		}
-		otherShips[s.id].setPos(s.x, s.y, s.ro);
-	    }
-	}
-
+//	socket.onmessage = function(e) {
+//	    var obj = JSON.parse(e.data)
+//
+//	    if (status == 0) {
+//		status = 1;
+//		console.log("id", obj.body.id);
+//		myShip.setid(obj.body.id);
+//		return;
+//	    }
+//
+//	    if (obj.cmd == 3) {
+//		this.procUpdate(obj);
+//		return;
+//	    }
+//
+//	    if (obj.cmd == 4) {
+//		this.procKick(obj);
+//		return;
+//	    }
+//	}
+//
+	socket.onmessage = this.onNetMessage;
 	this.socket = socket
     },
 
     send:function(str) {
 	this.socket.send(str);
+    },
+
+    msupdate:function(obj) {
+	for (var i = 0; i < obj.body.users.length; i++) {
+	    s = obj.body.users[i];
+	    if (s.id == myShip.id) {
+		continue;
+	    }
+
+	    o = otherShips[s.id];
+	    if (o == undefined || o == null) {
+		otherShips[s.id] = new Ship();
+		otherShips[s.id].setid(s.id);
+		console.log("create other ship", s.id);
+		shipLayer.createOtherShip(s.id);
+	    }
+	    otherShips[s.id].setPos(s.x, s.y, s.ro);
+	}
+    },
+
+    procKick:function(obj) {
+	shipLayer.removeOtherShip(obj.body.id);
     }
 });
 
@@ -199,6 +242,16 @@ var MyLayer = cc.Layer.extend({
         otherShips[id].sprite.setPosition(size.width / 2, size.height / 2);
 	otherShips[id].sprite.setScale(0.5);
 	this.addChild(otherShips[id].sprite, 1);
+    },
+
+    removeOtherShip: function(id) {
+	if (otherShips[id] == undefined || otherShips[id] == null)
+	    return
+
+	s = otherShips[id].sprite;
+	s.removeFromParent(true);
+
+	otherShips[id] = null;
     },
 
     moveForward: function() {
