@@ -57,6 +57,7 @@ var Conn = cc.Class.extend({
 	    status = 1;
 	    console.log("id", obj.body.id);
 	    myShip.setid(obj.body.id);
+	    shipLayer.createSelf(obj.body.id);
 	    return;
 	}
 
@@ -86,28 +87,6 @@ var Conn = cc.Class.extend({
 
 	socket.onclose = function(e) {}
 	socket.onerror = function(e) {}
-
-//	socket.onmessage = function(e) {
-//	    var obj = JSON.parse(e.data)
-//
-//	    if (status == 0) {
-//		status = 1;
-//		console.log("id", obj.body.id);
-//		myShip.setid(obj.body.id);
-//		return;
-//	    }
-//
-//	    if (obj.cmd == 3) {
-//		this.procUpdate(obj);
-//		return;
-//	    }
-//
-//	    if (obj.cmd == 4) {
-//		this.procKick(obj);
-//		return;
-//	    }
-//	}
-//
 	socket.onmessage = this.onNetMessage;
 	this.socket = socket
     },
@@ -296,20 +275,23 @@ var MyLayer = cc.Layer.extend({
 //        // add the label as a child to this layer
 //        this.addChild(this.helloLabel, 5);
 
-	myShip.sprite = cc.Sprite.create(s_ship);
-        myShip.sprite.setAnchorPoint(0.5, 0.5);
-        myShip.sprite.setPosition(size.width / 2, size.height / 2);
-	myShip.sprite.setScale(0.5);
-	this.addChild(myShip.sprite, 1);
-
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 0.05);
 	this.setKeyboardEnabled(true);
     },
 
+    createSelf: function(id) {
+        var size = cc.Director.getInstance().getWinSize();
+	myShip.sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
+        myShip.sprite.setAnchorPoint(0.5, 0.5);
+        myShip.sprite.setPosition(size.width / 2, size.height / 2);
+	myShip.sprite.setScale(0.5);
+	this.addChild(myShip.sprite, 1);
+    },
+
     createOtherShip: function(id) {
         var size = cc.Director.getInstance().getWinSize();
-	otherShips[id].sprite = cc.Sprite.create(s_ship);
+	otherShips[id].sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
         otherShips[id].sprite.setAnchorPoint(0.5, 0.5);
         otherShips[id].sprite.setPosition(size.width / 2, size.height / 2);
 	otherShips[id].sprite.setScale(0.5);
