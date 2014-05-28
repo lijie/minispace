@@ -9,6 +9,9 @@ var s_ship5 = "ship-5.png";
 var s_ship6 = "ship-6.png";
 var s_ship7 = "ship-7.png";
 var s_ship8 = "ship-8.png";
+var s_beam1 = "beam-1x.png";
+var s_beam2 = "beam-2x.png";
+var s_beam3 = "beam-3x.png";
 
 var g_resources = [
     //image
@@ -23,6 +26,9 @@ var g_resources = [
     s_ship6,
     s_ship7,
     s_ship8,
+    s_beam1,
+    s_beam2,
+    s_beam3,
 
     //plist
 

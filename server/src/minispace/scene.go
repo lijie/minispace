@@ -20,6 +20,7 @@ type protoUser struct {
 	ID int `json:"id"`
 	Move int `json:"move"`
 	Rotate int `json:"rotate"`
+	Act int `json:"act"`
 }
 
 type protoUserNotify struct {
@@ -124,6 +125,10 @@ func (s *Scene) updateAll() {
 		p.Move = c.move
 		p.Rotate = c.rotate
 		p.ID = c.id
+		p.Act = c.act
+
+		// clear action
+		c.act = 0
 
 		n = append(n, p)
 	}

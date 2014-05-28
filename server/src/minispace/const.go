@@ -8,6 +8,11 @@ const (
 	kCmdUserUpdate = 2
 	kCmdUserNotify = 3
 	kCmdUserKick = 4
+	kCmdUserAction = 5
+)
+
+const (
+	kActionShoot = 1
 )
 
 // error

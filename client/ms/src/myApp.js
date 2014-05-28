@@ -29,6 +29,7 @@ KEY_UP = 87
 KEY_DOWN = 83
 KEY_LEFT = 65
 KEY_RIGHT = 68
+KEY_SHOOT = 85
 
 MOVE_NONE = 0
 MOVE_FORWARD = 1
@@ -37,6 +38,8 @@ MOVE_BACKWARD = 2
 ROTATE_NONE = 0
 ROTATE_LEFT = 1
 ROTATE_RIGHT = 2
+
+MAX_BEAMCOUNT = 5
 
 var Conn = cc.Class.extend({
     socket:null,
@@ -57,7 +60,7 @@ var Conn = cc.Class.extend({
 	    status = 1;
 	    console.log("id", obj.body.id);
 	    myShip.setid(obj.body.id);
-	    shipLayer.createSelf(obj.body.id);
+	    myShip.parent.createSelf(obj.body.id);
 	    return;
 	}
 
@@ -68,6 +71,11 @@ var Conn = cc.Class.extend({
 
 	if (obj.cmd == 4) {
 	    myConn.procKick(obj);
+	    return;
+	}
+
+	if (obj.cmd == 5) {
+	    myConn.procAction(obj);
 	    return;
 	}
     },
@@ -107,16 +115,48 @@ var Conn = cc.Class.extend({
 		otherShips[s.id] = new Ship();
 		otherShips[s.id].setid(s.id);
 		console.log("create other ship", s.id);
-		shipLayer.createOtherShip(s.id);
+		myShip.parent.createOtherShip(s.id);
 	    }
 	    otherShips[s.id].setPos(s.x, s.y, s.ro);
 	    otherShips[s.id].setMove(s.move, s.rotate);
+
+	    if (s.act == 1) {
+		console.log("recv act", s.act, "id", s.id);
+		otherShips[s.id].shootBeam(false);
+	    }
+	}
+    },
+
+    procAction: function(obj) {
+	this.msupdate(obj);
+	for (var i = 0; i < obj.body.users.length; i++) {
+	    s = obj.body.users[i];
+	    if (s.id == myShip.id) {
+		continue;
+	    }
+
+	    o = otherShips[s.id];
+	    o.shootBeam(false);
 	}
     },
 
     procKick:function(obj) {
-	shipLayer.removeOtherShip(obj.body.id);
+	myShip.parent.removeOtherShip(obj.body.id);
     }
+});
+
+var Beam = cc.Class.extend({
+    sprite:null,
+    moveForward: function(dt) {
+	ro = this.sprite.getRotation();
+	if (ro < 0)
+	    ro = 360 + ro;
+	r = 160 * dt;
+	x = r * Math.sin(ro / 180 * Math.PI);
+	y = r * Math.cos(ro / 180 * Math.PI);
+
+	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
+    },
 });
 
 var Ship = cc.Class.extend({
@@ -127,8 +167,14 @@ var Ship = cc.Class.extend({
     sprite: null,
     move: MOVE_NONE,
     rotate: ROTATE_NONE,
+    beamCount: 0,
+    parent:null,
 
     ctor:function() {
+    },
+
+    setLayer: function(layer) {
+	this.parent = layer;
     },
 
     setPos:function(x, y, ro) {
@@ -207,6 +253,39 @@ var Ship = cc.Class.extend({
 	this.sprite.setRotation(ro);
     },
 
+    // callback
+    removeBeam:function (nodeExecutingAction, data) {
+        nodeExecutingAction.removeFromParent(data);
+	data.beamCount--;
+    },
+
+    shootBeam: function(update) {
+	// console.log("shootbeam", this.beamCount)
+	if (this.beamCount >= MAX_BEAMCOUNT)
+	    return;
+
+	_beam = cc.Sprite.create(s_beam1);
+	_beam.setPosition(this.sprite.getPositionX(),
+			  this.sprite.getPositionY());
+        this.parent.addChild(_beam, 1);
+
+	ro = this.sprite.getRotation() + 90;
+	_beam.setRotation(this.sprite.getRotation());
+
+	x = 1000 * Math.sin(ro / 180 * Math.PI);
+	y = 1000 * Math.cos(ro / 180 * Math.PI);
+
+	var action = cc.Sequence.create(
+	    cc.MoveBy.create(3.0, cc.p(x, y)),
+	    cc.CallFunc.create(this.removeBeam, _beam, this));
+        _beam.runAction(action);
+	this.beamCount++;
+
+	// notify server
+	if (update)
+	    this.sendactupdate(1);
+    },
+
     sendmsupdate: function() {
 	var obj = {
 	    cmd: 2,
@@ -222,6 +301,26 @@ var Ship = cc.Class.extend({
 	    }
 	}
 	var str = JSON.stringify(obj, undefined, 2);
+	myConn.send(str);
+    },
+
+    sendactupdate: function(action) {
+	var obj = {
+	    cmd: 5,
+	    errcode: 0,
+	    seq: 0,
+	    userid: "lijie",
+	    body: {
+		x: this.sprite.getPositionX(),
+		y: this.sprite.getPositionY(),
+		ro: this.sprite.getRotation(),
+		move: this.move,
+		rotate: this.rotate,
+		act: action
+	    }
+	}
+	var str = JSON.stringify(obj, undefined, 2);
+	// console.log("send", str);
 	myConn.send(str);
     }
 });
@@ -295,6 +394,7 @@ var MyLayer = cc.Layer.extend({
         otherShips[id].sprite.setAnchorPoint(0.5, 0.5);
         otherShips[id].sprite.setPosition(size.width / 2, size.height / 2);
 	otherShips[id].sprite.setScale(0.5);
+	otherShips[id].setLayer(this);
 	this.addChild(otherShips[id].sprite, 1);
     },
 
@@ -330,6 +430,8 @@ var MyLayer = cc.Layer.extend({
 	    myShip.rotate = ROTATE_RIGHT;
 	} else if (key == KEY_LEFT) {
 	    myShip.rotate = ROTATE_LEFT;
+	} else if (key == KEY_SHOOT) {
+	    myShip.shootBeam(true);
 	}
     },
 
@@ -385,15 +487,13 @@ var MyLayer = cc.Layer.extend({
     }
 });
 
-var shipLayer = null;
-
 var MyScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
 	var layer = new MyLayer();
         this.addChild(layer);
         layer.init();
-	shipLayer = layer;
+	myShip.setLayer(layer);
 	myConn.start();
     }
 });
