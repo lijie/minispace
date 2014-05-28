@@ -1,28 +1,5 @@
-/****************************************************************************
- Copyright (c) 2010-2012 cocos2d-x.org
- Copyright (c) 2008-2010 Ricardo Quesada
- Copyright (c) 2011      Zynga Inc.
-
- http://www.cocos2d-x.org
-
- Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
-
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
-
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE.
- ****************************************************************************/
+// Copyright (c) 2014 
+// LiJie 2014-05-28 15:20:33
 
 // const
 KEY_UP = 87
@@ -41,6 +18,7 @@ ROTATE_RIGHT = 2
 
 MAX_BEAMCOUNT = 5
 
+// connection manager
 var Conn = cc.Class.extend({
     socket:null,
     status:0,
@@ -145,6 +123,7 @@ var Conn = cc.Class.extend({
     }
 });
 
+// no use yet
 var Beam = cc.Class.extend({
     sprite:null,
     moveForward: function(dt) {
@@ -159,6 +138,7 @@ var Beam = cc.Class.extend({
     },
 });
 
+// player ship
 var Ship = cc.Class.extend({
     x:0,
     y:0,
@@ -219,8 +199,8 @@ var Ship = cc.Class.extend({
 
     moveForward: function(dt) {
 	ro = this.sprite.getRotation() + 90;
-	if (ro < 0)
-	    ro = 360 + ro;
+	if (ro >= 360)
+	    ro = ro - 360;
 	r = 80 * dt;
 	x = r * Math.sin(ro / 180 * Math.PI);
 	y = r * Math.cos(ro / 180 * Math.PI);
@@ -230,8 +210,8 @@ var Ship = cc.Class.extend({
 
     moveBackward: function(dt) {
 	ro = this.sprite.getRotation() + 90;
-	if (ro < 0)
-	    ro = 360 + ro;
+	if (ro >= 360)
+	    ro = ro - 360;
 	r = 80 * dt;
 	x = r * Math.sin(ro / 180 * Math.PI);
 	y = r * Math.cos(ro / 180 * Math.PI);
