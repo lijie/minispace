@@ -1,9 +1,85 @@
 package minispace
 
 import _ "code.google.com/p/go.net/websocket"
+import "container/list"
+import "fmt"
+import "math"
+
+type ShipStatus struct {
+	// position
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	Angle float64 `json:"angle"`
+	// forward or backward
+	Move int `json:"move"`
+	// left-rotate or right->rotate
+	Rotate int `json:"rotate"`
+	// shoot
+	Act int `json:"act"`
+	// ship id
+	Id int `json:"id"`
+}
+
+type ShipAttr struct {
+	lv, speed, hp, beam int
+}
+
+type Beam struct {
+	X, Y, Angle float64
+	radian float64
+	pos *list.Element
+}
+
+func (b *Beam) Hit(target *User) bool {
+	return false
+}
+
+// beam speed: 1000pix/3seconds
+func (b *Beam) Update(delta float64) bool {
+	r := 1000.0 / (3.0 * 1000.0) * delta;
+	b.X = b.X + r * math.Sin(b.radian)
+	b.Y = b.Y + r * math.Cos(b.radian)
+	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
+
+	if b.X < 0 || b.X > 960 {
+		return false
+	}
+	if b.Y < 0 || b.Y > 640 {
+		return false
+	}
+	return true
+}
 
 type User struct {
-	x, y, ro, move, rotate, act, id int
+	ShipStatus
+	ShipAttr
+	beamList *list.List
+}
+
+func (u *User) Update(delta float64) {
+	var tmp *list.Element
+	for b := u.beamList.Front(); b != nil; {
+		tmp = b.Next()
+		if !(b.Value.(*Beam).Update(delta)) {
+			u.beamList.Remove(b)
+		}
+		b = tmp
+	}
+}
+
+func (u *User) CheckHit(target *User) bool {
+	if u == target {
+		return false
+	}
+
+	for b := u.beamList.Front(); b != nil; b = b.Next() {
+		if b.Value.(*Beam).Hit(target) {
+			fmt.Printf("%d hit target %d\n", u.Id, target.Id)
+			return true
+		}
+	}
+
+	return false
 }
 
 func init() {
@@ -13,11 +89,11 @@ func init() {
 }
 
 func procUserUpdate(c *Client, msg *Msg) int {
-	c.x = int(msg.Body["x"].(float64))
-	c.y = int(msg.Body["y"].(float64))
-	c.ro = int(msg.Body["ro"].(float64))
-	c.move = int(msg.Body["move"].(float64))
-	c.rotate = int(msg.Body["rotate"].(float64))
+	c.X = msg.Body["x"].(float64)
+	c.Y = msg.Body["y"].(float64)
+	c.Angle = msg.Body["angle"].(float64)
+	c.Move = int(msg.Body["move"].(float64))
+	c.Rotate = int(msg.Body["rotate"].(float64))
 	return 0
 }
 
@@ -25,17 +101,26 @@ func procUserLogin(c *Client, msg *Msg) int {
 	c.login = true
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
-	reply.Body["id"] = c.id
+	reply.Body["id"] = c.Id
 	c.Reply(reply)
 	return 0
 }
 
 func procUserAction(c *Client, msg *Msg) int {
-	c.x = int(msg.Body["x"].(float64))
-	c.y = int(msg.Body["y"].(float64))
-	c.ro = int(msg.Body["ro"].(float64))
-	c.move = int(msg.Body["move"].(float64))
-	c.rotate = int(msg.Body["rotate"].(float64))
-	c.act = int(msg.Body["act"].(float64))
+	c.X = msg.Body["x"].(float64)
+	c.Y = msg.Body["y"].(float64)
+	c.Angle = msg.Body["angle"].(float64)
+	c.Move = int(msg.Body["move"].(float64))
+	c.Rotate = int(msg.Body["rotate"].(float64))
+	c.Act = int(msg.Body["act"].(float64))
+
+	if c.Act == 1 {
+		b := &Beam{c.X, c.Y, c.Angle + 90, (c.Angle + 90) * math.Pi / 180, nil}
+		b.pos = c.beamList.PushBack(b)
+	}
 	return 0
+}
+
+func InitUser(u *User) {
+	u.beamList = list.New()
 }

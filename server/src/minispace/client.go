@@ -128,5 +128,6 @@ func NewClient(conn *websocket.Conn) *Client {
 		enable: true,
 		login: false,
 	}
+	InitUser(&c.User)
 	return c
 }

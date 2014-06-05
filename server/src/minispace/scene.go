@@ -13,20 +13,6 @@ type Scene struct {
 	enable bool
 }
 
-type protoUser struct {
-	X int `json:"x"`
-	Y int `json:"y"`
-	RO int `json:"ro"`
-	ID int `json:"id"`
-	Move int `json:"move"`
-	Rotate int `json:"rotate"`
-	Act int `json:"act"`
-}
-
-type protoUserNotify struct {
-	Users []protoUser
-}
-
 var currentScene *Scene
 func init() {
 	currentScene = NewScene()
@@ -78,7 +64,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	for ; i < 16; i++ {
 		if s.clients[i] == nil {
 			s.clients[i] = c
-			c.id = i
+			c.Id = i
 			break
 		}
 	}
@@ -105,9 +91,8 @@ func (s *Scene) updateAll() {
 		return
 	}
 
-	var p protoUser
 	var c *Client
-	var n []protoUser
+	var n []*ShipStatus
 	
 	for i := 0; i < 16; i++ {
 		if s.clients[i] == nil {
@@ -119,18 +104,9 @@ func (s *Scene) updateAll() {
 			continue
 		}
 
-		p.X = c.x
-		p.Y = c.y
-		p.RO = c.ro
-		p.Move = c.move
-		p.Rotate = c.rotate
-		p.ID = c.id
-		p.Act = c.act
-
+		n = append(n, &c.User.ShipStatus)
 		// clear action
-		c.act = 0
-
-		n = append(n, p)
+		c.Act = 0
 	}
 
 	msg := NewMsg()
@@ -141,6 +117,20 @@ func (s *Scene) updateAll() {
 }
 
 func (s *Scene) procTimeout() {
+}
+
+func (s *Scene) runFrame(delta float64) {
+	// update status for all clients
+	s.updateAll()
+
+	// update for each user
+	for i := 0; i < 16; i++ {
+		if s.clients[i] == nil {
+			continue
+		}
+
+		s.clients[i].Update(delta)
+	}
 }
 
 func (s *Scene) Run() {
@@ -157,15 +147,16 @@ func (s *Scene) Run() {
 	for s.enable {
 		select {
 		case p = <-s.cli_chan:
-			if p != nil {
-				if p.ok {
-					p.client.ProcMsg(&p.msg)
-				} else {
-					s.DelClient(p.client)
-				}
+			if p == nil {
+				break
 			}
+			if !p.ok {
+				s.DelClient(p.client)
+				break
+			}
+			p.client.ProcMsg(&p.msg)
 		case _ = <- timer_ch:
-			s.updateAll()
+			s.runFrame(50.0)
 		}
 	}
 }

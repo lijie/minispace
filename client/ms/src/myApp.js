@@ -95,7 +95,7 @@ var Conn = cc.Class.extend({
 		console.log("create other ship", s.id);
 		myShip.parent.createOtherShip(s.id);
 	    }
-	    otherShips[s.id].setPos(s.x, s.y, s.ro);
+	    otherShips[s.id].setPos(s.x, s.y, s.angle);
 	    otherShips[s.id].setMove(s.move, s.rotate);
 
 	    if (s.act == 1) {
@@ -127,12 +127,12 @@ var Conn = cc.Class.extend({
 var Beam = cc.Class.extend({
     sprite:null,
     moveForward: function(dt) {
-	ro = this.sprite.getRotation();
-	if (ro < 0)
-	    ro = 360 + ro;
+	angle = this.sprite.getRotation();
+	if (angle < 0)
+	    angle = 360 + angle;
 	r = 160 * dt;
-	x = r * Math.sin(ro / 180 * Math.PI);
-	y = r * Math.cos(ro / 180 * Math.PI);
+	x = r * Math.sin(angle / 180 * Math.PI);
+	y = r * Math.cos(angle / 180 * Math.PI);
 
 	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
     },
@@ -142,32 +142,48 @@ var Beam = cc.Class.extend({
 var Ship = cc.Class.extend({
     x:0,
     y:0,
-    ro:0,
+    angle:0,
     id:-1,
     sprite: null,
     move: MOVE_NONE,
     rotate: ROTATE_NONE,
     beamCount: 0,
     parent:null,
+    label:null,
 
     ctor:function() {
+    },
+
+    create: function(id, name, layer, x, y) {
+	this.sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
+        this.sprite.setAnchorPoint(0.5, 0.5);
+        this.sprite.setPosition(x, y);
+	this.sprite.setScale(0.5);
+	layer.addChild(this.sprite, 1);
+	this.parent = layer;
+
+	// set name
+	var label = cc.LabelTTF.create(name, "Arial", 30);
+        label.setAnchorPoint(0, 1);
+	this.sprite.addChild(label);
+	this.label = label;
     },
 
     setLayer: function(layer) {
 	this.parent = layer;
     },
 
-    setPos:function(x, y, ro) {
+    setPos:function(x, y, angle) {
 	this.x = x;
 	this.y = y;
-	this.ro = ro;
+	this.angle = angle;
     },
 
     synstep: 0,
     updatePos:function() {
 	if (this.synstep % 10 == 0) {
 	    this.sprite.setPosition(this.x, this.y);
-	    this.sprite.setRotation(this.ro);
+	    this.sprite.setRotation(this.angle);
 	}
 	this.synstep++;
     },
@@ -185,8 +201,8 @@ var Ship = cc.Class.extend({
 	return this.y;
     },
 
-    getRo:function() {
-	return this.ro;
+    getAngle:function() {
+	return this.angle;
     },
 
     setid:function(id) {
@@ -198,39 +214,39 @@ var Ship = cc.Class.extend({
     },
 
     moveForward: function(dt) {
-	ro = this.sprite.getRotation() + 90;
-	if (ro >= 360)
-	    ro = ro - 360;
+	angle = this.sprite.getRotation() + 90;
+	if (angle >= 360)
+	    angle = angle - 360;
 	r = 80 * dt;
-	x = r * Math.sin(ro / 180 * Math.PI);
-	y = r * Math.cos(ro / 180 * Math.PI);
+	x = r * Math.sin(angle / 180 * Math.PI);
+	y = r * Math.cos(angle / 180 * Math.PI);
 
 	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
     },
 
     moveBackward: function(dt) {
-	ro = this.sprite.getRotation() + 90;
-	if (ro >= 360)
-	    ro = ro - 360;
+	angle = this.sprite.getRotation() + 90;
+	if (angle >= 360)
+	    angle = angle - 360;
 	r = 80 * dt;
-	x = r * Math.sin(ro / 180 * Math.PI);
-	y = r * Math.cos(ro / 180 * Math.PI);
+	x = r * Math.sin(angle / 180 * Math.PI);
+	y = r * Math.cos(angle / 180 * Math.PI);
 
 	this.sprite.setPosition(this.sprite.getPositionX() - x, this.sprite.getPositionY() - y);
     },
 
     moveLRotate: function(dt) {
-	ro = this.sprite.getRotation() - (80 * dt);
-	if (ro < 0)
-	    ro = 360 + ro;
-	this.sprite.setRotation(ro);
+	angle = this.sprite.getRotation() - (80 * dt);
+	if (angle < 0)
+	    angle = 360 + angle;
+	this.sprite.setRotation(angle);
     },
 
     moveRRotate: function(dt) {
-	ro = this.sprite.getRotation() + (80 * dt);
-	if (ro >= 360)
-	    ro = ro - 360;
-	this.sprite.setRotation(ro);
+	angle = this.sprite.getRotation() + (80 * dt);
+	if (angle >= 360)
+	    angle = angle - 360;
+	this.sprite.setRotation(angle);
     },
 
     // callback
@@ -249,11 +265,11 @@ var Ship = cc.Class.extend({
 			  this.sprite.getPositionY());
         this.parent.addChild(_beam, 1);
 
-	ro = this.sprite.getRotation() + 90;
+	angle = this.sprite.getRotation() + 90;
 	_beam.setRotation(this.sprite.getRotation());
 
-	x = 1000 * Math.sin(ro / 180 * Math.PI);
-	y = 1000 * Math.cos(ro / 180 * Math.PI);
+	x = 1000 * Math.sin(angle / 180 * Math.PI);
+	y = 1000 * Math.cos(angle / 180 * Math.PI);
 
 	var action = cc.Sequence.create(
 	    cc.MoveBy.create(3.0, cc.p(x, y)),
@@ -275,7 +291,7 @@ var Ship = cc.Class.extend({
 	    body: {
 		x: this.sprite.getPositionX(),
 		y: this.sprite.getPositionY(),
-		ro: this.sprite.getRotation(),
+		angle: this.sprite.getRotation(),
 		move: this.move,
 		rotate: this.rotate
 	    }
@@ -293,7 +309,7 @@ var Ship = cc.Class.extend({
 	    body: {
 		x: this.sprite.getPositionX(),
 		y: this.sprite.getPositionY(),
-		ro: this.sprite.getRotation(),
+		angle: this.sprite.getRotation(),
 		move: this.move,
 		rotate: this.rotate,
 		act: action
@@ -308,7 +324,7 @@ var Ship = cc.Class.extend({
 var myShip = new Ship();
 var otherShips = new Array(16);
 
-var MyLayer = cc.Layer.extend({
+var GameLayer = cc.Layer.extend({
     isMouseDown:false,
     helloImg:null,
     helloLabel:null,
@@ -361,21 +377,12 @@ var MyLayer = cc.Layer.extend({
 
     createSelf: function(id) {
         var size = cc.Director.getInstance().getWinSize();
-	myShip.sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
-        myShip.sprite.setAnchorPoint(0.5, 0.5);
-        myShip.sprite.setPosition(size.width / 2, size.height / 2);
-	myShip.sprite.setScale(0.5);
-	this.addChild(myShip.sprite, 1);
+	myShip.create(id, "LiJie", this, size.width / 2, size.height / 2);
     },
 
     createOtherShip: function(id) {
         var size = cc.Director.getInstance().getWinSize();
-	otherShips[id].sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
-        otherShips[id].sprite.setAnchorPoint(0.5, 0.5);
-        otherShips[id].sprite.setPosition(size.width / 2, size.height / 2);
-	otherShips[id].sprite.setScale(0.5);
-	otherShips[id].setLayer(this);
-	this.addChild(otherShips[id].sprite, 1);
+	otherShips[id].create(id, "test", this, size.width / 2, size.height / 2);
     },
 
     removeOtherShip: function(id) {
@@ -467,10 +474,10 @@ var MyLayer = cc.Layer.extend({
     }
 });
 
-var MyScene = cc.Scene.extend({
+var GameScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
-	var layer = new MyLayer();
+	var layer = new GameLayer();
         this.addChild(layer);
         layer.init();
 	myShip.setLayer(layer);

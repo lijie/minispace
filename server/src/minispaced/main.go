@@ -4,6 +4,7 @@ import "log"
 import "code.google.com/p/go.net/websocket"
 import "net/http"
 import "minispace"
+import "runtime"
 //import "code.google.com/p/log4go"
 
 //var mainlog log4go.Logger
@@ -38,6 +39,8 @@ func clientProc(ws *websocket.Conn) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	log.Printf("Starting minispace...");
 	err := minispace.Init()
 	if err != nil {
