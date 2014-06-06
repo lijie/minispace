@@ -8,6 +8,12 @@ import "errors"
 import "fmt"
 import "container/list"
 
+const (
+	PROC_OK = 0
+	PROC_ERR = 1
+	PROC_KICK = 2
+)
+
 type Msg struct {
 	Cmd float64 `json:"cmd"`
 	ErrCode float64 `json:"errcode"`
@@ -42,6 +48,7 @@ type Client struct {
 	conn *websocket.Conn
 	enable bool
 	login bool
+	insence bool
 	scene *Scene
 	pos *list.Element
 }
@@ -86,13 +93,16 @@ func (c *Client) Reply(msg *Msg) {
 }
 
 // called in scene goroutine
-func (c *Client) ProcMsg(msg *Msg) {
+func (c *Client) ProcMsg(msg *Msg) int {
 //	fmt.Println(*msg)
 	proc := procFuncArray[int(msg.Cmd)]
 	if proc != nil {
 //		fmt.Printf("proc %v\n", msg)
-		proc(c, msg)
+		return proc(c, msg)
 	}
+
+	// unknow cmd, kick client
+	return PROC_KICK
 }
 
 func (c *Client) procTimeout() {
@@ -101,6 +111,10 @@ func (c *Client) procTimeout() {
 
 func (c *Client) Proc() {
 	defer c.Close()
+
+	// TODO: not here
+	// client should send login request first
+	// and if succ, server call AddClient()
 	ch, err := CurrentScene().AddClient(c)
 	if err != nil {
 		fmt.Printf("add client err")
@@ -111,7 +125,15 @@ func (c *Client) Proc() {
 
 	for {
 		p, err = c.readPacket(c.conn)
-		// send packet to current scene
+
+		// if not in any sence
+		// proc msg in current goroutine
+		if !c.insence {
+			c.ProcMsg(&p.msg)
+			continue
+		}
+
+		// send packet to the scene routine
 		ch <- p
 
 		if err != nil || !p.ok {
@@ -129,6 +151,7 @@ func NewClient(conn *websocket.Conn) *Client {
 		conn: conn,
 		enable: true,
 		login: false,
+		insence: false,
 	}
 	InitUser(&c.User)
 	return c

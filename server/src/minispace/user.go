@@ -118,7 +118,7 @@ func procUserUpdate(c *Client, msg *Msg) int {
 	c.Angle = msg.Body["angle"].(float64)
 	c.Move = int(msg.Body["move"].(float64))
 	c.Rotate = int(msg.Body["rotate"].(float64))
-	return 0
+	return PROC_OK
 }
 
 func procUserLogin(c *Client, msg *Msg) int {
@@ -127,7 +127,7 @@ func procUserLogin(c *Client, msg *Msg) int {
 	reply.Cmd = kCmdUserLogin
 	reply.Body["id"] = c.Id
 	c.Reply(reply)
-	return 0
+	return PROC_OK
 }
 
 func procUserAction(c *Client, msg *Msg) int {
@@ -142,7 +142,7 @@ func procUserAction(c *Client, msg *Msg) int {
 		b := &Beam{c.X, c.Y, c.Angle + 90, (c.Angle + 90) * math.Pi / 180, nil}
 		b.pos = c.beamList.PushBack(b)
 	}
-	return 0
+	return PROC_OK
 }
 
 func InitUser(u *User) {
