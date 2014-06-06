@@ -24,6 +24,20 @@ type ShipAttr struct {
 	lv, speed, hp, beam int
 }
 
+type Rect struct {
+	x, y, width, height int
+}
+
+func (r *Rect) InRect(x, y int) bool {
+	if x < r.x || x > r.x + r.width {
+		return false
+	}
+	if y < r.y || y > r.y + r.height {
+		return false
+	}
+	return true
+}
+
 type Beam struct {
 	X, Y, Angle float64
 	radian float64
@@ -31,6 +45,10 @@ type Beam struct {
 }
 
 func (b *Beam) Hit(target *User) bool {
+	r := Rect{int(target.X - 25), int(target.Y) - 25, 50, 50}
+	if r.InRect(int(b.X), int(b.Y)) {
+		return true
+	}
 	return false
 }
 
@@ -64,6 +82,12 @@ func (u *User) Update(delta float64) {
 			u.beamList.Remove(b)
 		}
 		b = tmp
+	}
+}
+
+func (u *User) CheckHitAll(l *list.List) {
+	for p := l.Front(); p != nil; p = p.Next() {
+		u.CheckHit(&p.Value.(*Client).User)
 	}
 }
 

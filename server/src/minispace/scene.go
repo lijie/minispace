@@ -1,16 +1,17 @@
 package minispace
 
 import "sync"
-import "errors"
 import "time"
 import _ "fmt"
+import "container/list"
 
 type Scene struct {
-	clients [16]*Client
+	clientList *list.List
 	num int
 	cli_chan chan *Packet
 	lock sync.Mutex
 	enable bool
+	idmap int
 }
 
 var currentScene *Scene
@@ -22,7 +23,24 @@ func CurrentScene() *Scene {
 	return currentScene
 }
 
-func (s *Scene) DelClient(c *Client) {
+func (s *Scene) getId() (int, error) {
+	if s.num >= 16 {
+		return -1, ErrSceneFull
+	}
+
+	tmp := s.idmap
+	for i := 0; i < 16; i++ {
+		if tmp & 0x01 == 0 {
+			s.idmap = s.idmap | (1 << uint(i))
+			return i, nil
+		}
+		tmp = tmp >> 1
+	}
+
+	return -1, ErrSceneFull
+}
+
+func (s *Scene) delClient(c *Client) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -30,22 +48,12 @@ func (s *Scene) DelClient(c *Client) {
 		return
 	}
 
-	i := 0
-	for ; i < 16; i++ {
-		if s.clients[i] == c {
-			s.clients[i] = nil
-			s.num--
-			break
-		}
-	}
-
-	if i >= 16 {
-		return
-	}
+	id := c.Id
+	s.clientList.Remove(c.pos)
 
 	reply := NewMsg()
 	reply.Cmd = kCmdUserKick
-	reply.Body["id"] = i
+	reply.Body["id"] = id
 	s.notifyAll(reply)
 	return
 }
@@ -57,32 +65,23 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	defer s.lock.Unlock()
 
 	if s.num >= 16 {
-		return nil, errors.New("Scene is full")
+		return nil, ErrSceneFull
 	}
 
-	i := 0
-	for ; i < 16; i++ {
-		if s.clients[i] == nil {
-			s.clients[i] = c
-			c.Id = i
-			break
-		}
+	id, err := s.getId()
+	if err != nil {
+		return nil, err
 	}
 
-	if i >= 16 {
-		return nil, errors.New("Scene is full")
-	}
-
+	c.Id = id
+	c.pos = s.clientList.PushBack(c)
 	s.num++
 	return s.cli_chan, nil
 }
 
 func (s *Scene) notifyAll(msg *Msg) {
-	for i := 0; i < 16; i++ {
-		if s.clients[i] == nil {
-			continue
-		}
-		s.clients[i].Reply(msg)
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		p.Value.(*Client).Reply(msg)
 	}
 }
 
@@ -93,17 +92,12 @@ func (s *Scene) updateAll() {
 
 	var c *Client
 	var n []*ShipStatus
-	
-	for i := 0; i < 16; i++ {
-		if s.clients[i] == nil {
-			continue
-		}
 
-		c = s.clients[i]
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		c = p.Value.(*Client)
 		if !c.login {
 			continue
 		}
-
 		n = append(n, &c.User.ShipStatus)
 		// clear action
 		c.Act = 0
@@ -124,12 +118,13 @@ func (s *Scene) runFrame(delta float64) {
 	s.updateAll()
 
 	// update for each user
-	for i := 0; i < 16; i++ {
-		if s.clients[i] == nil {
-			continue
-		}
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		p.Value.(*Client).Update(delta)
+	}
 
-		s.clients[i].Update(delta)
+	// check hit for each ship
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		p.Value.(*Client).CheckHitAll(s.clientList)
 	}
 }
 
@@ -151,7 +146,7 @@ func (s *Scene) Run() {
 				break
 			}
 			if !p.ok {
-				s.DelClient(p.client)
+				s.delClient(p.client)
 				break
 			}
 			p.client.ProcMsg(&p.msg)
@@ -165,5 +160,6 @@ func NewScene() *Scene {
 	return &Scene{
 		enable: true,
 		cli_chan: make(chan *Packet, 1024),
+		clientList: list.New(),
 	}
 }

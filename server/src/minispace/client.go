@@ -6,6 +6,7 @@ import "code.google.com/p/go.net/websocket"
 import _ "time"
 import "errors"
 import "fmt"
+import "container/list"
 
 type Msg struct {
 	Cmd float64 `json:"cmd"`
@@ -42,6 +43,7 @@ type Client struct {
 	enable bool
 	login bool
 	scene *Scene
+	pos *list.Element
 }
 
 type ClientProc func(*Client, *Msg) int

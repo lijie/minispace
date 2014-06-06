@@ -17,3 +17,4 @@ const (
 
 // error
 var ErrReadPacket = errors.New("Read packet from client error")
+var ErrSceneFull = errors.New("Scene is full")
