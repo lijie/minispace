@@ -217,6 +217,7 @@
             <sources dir="${basedir}">
                 <file name="src/resource.js"/>
                 <file name="src/myApp.js"/>
+                <file name="src/login.js"/>
                 <file name="main.js"/>
             </sources>
         </jscomp>
