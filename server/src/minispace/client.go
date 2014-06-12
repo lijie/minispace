@@ -50,6 +50,7 @@ type Client struct {
 	login bool
 	insence bool
 	scene *Scene
+	lasterr int
 	pos *list.Element
 }
 
@@ -87,6 +88,10 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 	}
 }
 
+func (c *Client) SetErrCode(code int) {
+	c.lasterr = code
+}
+
 func (c *Client) Reply(msg *Msg) {
 //	fmt.Printf("reply %v\n", msg)
 	websocket.JSON.Send(c.conn, msg)
@@ -109,37 +114,48 @@ func (c *Client) procTimeout() {
 	c.enable = false
 }
 
+func (c *Client) Kick() {
+	c.enable = false
+}
+
 func (c *Client) Proc() {
 	defer c.Close()
 
-	// TODO: not here
-	// client should send login request first
-	// and if succ, server call AddClient()
-	ch, err := CurrentScene().AddClient(c)
+	var p *Packet
+
+	// login
+	p, err = c.readPacket(c.conn)
+	if err != nil || !p.ok {
+		return
+	}
+
+	if p.msg.Cmd != kCmdUserLogin {
+		return
+	}
+
+	if c.ProcMsg(&p.msg) != PROC_OK {
+		// login failed
+		// should reply error
+		return
+	}
+
+	// ok, login succ, add to a scene
+	ch, err = CurrentScene().AddClient(c)
 	if err != nil {
 		fmt.Printf("add client err")
 		return
 	}
 
-	var p *Packet
+	c.insence = true
 
-	for {
+	// forward msg to scene routine
+	for c.enable {
 		p, err = c.readPacket(c.conn)
-
-		// if not in any sence
-		// proc msg in current goroutine
-		if !c.insence {
-			c.ProcMsg(&p.msg)
-			continue
-		}
-
-		// send packet to the scene routine
-		ch <- p
-
-		if err != nil || !p.ok {
-			// error, close conn
+		if err == nil && p.ok {
+			ch <- p
+		} else {
+			CurrentScene().DelClient(c)
 			c.enable = false
-			break
 		}
 	}
 

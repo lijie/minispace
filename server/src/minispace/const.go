@@ -18,3 +18,14 @@ const (
 // error
 var ErrReadPacket = errors.New("Read packet from client error")
 var ErrSceneFull = errors.New("Scene is full")
+var ErrDBConnectFail = errors.New("Connect Database failed")
+var ErrFifoIsFull = errors.New("Fifo is full")
+var ErrFifoIsEmpty = errors.New("Fifo is empty")
+var ErrFifoInvalidSize = errors.New("Invalid fifo size")
+var ErrUserNotFound = errors.New("User not found")
+
+// error code
+const (
+	ErrCodeInvalidProto = 0x1000
+	ErrCodeDBError = 0x1001
+)
