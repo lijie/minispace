@@ -205,12 +205,21 @@ func procUserLogin(c *Client, msg *Msg) int {
 		return PROC_KICK
 	}
 
+	// ok, login succ, add to a scene
+	_, err = CurrentScene().AddClient(c)
+	if err != nil {
+		fmt.Printf("add client err")
+		return PROC_KICK
+	}
+
 	// all done, send reply
 	c.login = true
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
 	reply.Body["id"] = c.Id
 	c.Reply(reply)
+
+	fmt.Printf("login result: %#v\n", reply)
 	return PROC_OK
 }
 

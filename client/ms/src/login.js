@@ -39,16 +39,19 @@ var LoginLayer = cc.Layer.extend({
 	this.schedule(this.timeCallback, 5);
     },
 
-    loginCallback: function(obj, result) {
-	if (result == 0) {
-	    console.log("login ok");
-	    return;
+    loginCallback: function(target, obj) {
+	console.log("login callback", obj, obj.body);
+	if (obj.errcode == 0) {
+	    myShip.setid(obj.body.id);
+	    // login ok, go to gamescene
+            var director = cc.Director.getInstance();
+	    cc.LoaderScene.preload(g_resources, function () {
+		director.replaceScene(new GameScene());
+            }, this);
 	}
-
-	console.log("login error", result);
     },
 
-    textFieldEvent: function (sender, type) {
+    textfieldevent: function (sender, type) {
 	console.log("here", type);
     },
 

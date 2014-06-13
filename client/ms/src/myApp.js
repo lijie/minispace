@@ -297,7 +297,7 @@ var Ship = cc.Class.extend({
 	    }
 	}
 	var str = JSON.stringify(obj, undefined, 2);
-	myConn.send(str);
+	miniConn.send(str);
     },
 
     sendactupdate: function(action) {
@@ -317,7 +317,7 @@ var Ship = cc.Class.extend({
 	}
 	var str = JSON.stringify(obj, undefined, 2);
 	// console.log("send", str);
-	myConn.send(str);
+	miniConn.send(str);
     }
 });
 
@@ -373,6 +373,16 @@ var GameLayer = cc.Layer.extend({
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 0.05);
 	this.setKeyboardEnabled(true);
+    },
+
+    onEnter: function() {
+	this._super();
+
+	// register cmd
+	miniConn.setCmdCallback(3, this.procUserNotify, this);
+	miniConn.setCmdCallback(5, this.procAction, this);
+
+	this.createSelf(myShip.id);
     },
 
     createSelf: function(id) {
@@ -471,6 +481,43 @@ var GameLayer = cc.Layer.extend({
     },
 
     ishit: function() {
+    },
+
+    procUserNotify: function(target, obj) {
+	for (var i = 0; i < obj.body.users.length; i++) {
+	    s = obj.body.users[i];
+	    if (s.id == myShip.id) {
+		continue;
+	    }
+
+	    o = otherShips[s.id];
+	    if (o == undefined || o == null) {
+		otherShips[s.id] = new Ship();
+		otherShips[s.id].setid(s.id);
+		console.log("create other ship", s.id);
+		myShip.parent.createOtherShip(s.id);
+	    }
+	    otherShips[s.id].setPos(s.x, s.y, s.angle);
+	    otherShips[s.id].setMove(s.move, s.rotate);
+
+	    if (s.act == 1) {
+		console.log("recv act", s.act, "id", s.id);
+		otherShips[s.id].shootBeam(false);
+	    }
+	}
+    },
+
+    procAction: function(target, obj) {
+	this.procUserNotify(target, obj);
+	for (var i = 0; i < obj.body.users.length; i++) {
+	    s = obj.body.users[i];
+	    if (s.id == myShip.id) {
+		continue;
+	    }
+
+	    o = otherShips[s.id];
+	    o.shootBeam(false);
+	}
     }
 });
 
@@ -481,7 +528,7 @@ var GameScene = cc.Scene.extend({
         this.addChild(layer);
         layer.init();
 	myShip.setLayer(layer);
-	myConn.start();
+//	myConn.start();
     }
 });
 

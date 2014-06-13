@@ -1,6 +1,20 @@
 // Copyright (c) 2014 Li Jie
 // 2014-06-06 17:25:53
 
+
+// command table
+var Command = cc.Class.extend({
+    callback: null,
+    arg: null,
+
+    ctor: function(cb, arg) {
+	this.callback = cb;
+	this.arg = arg;
+    }
+});
+
+var CommandTable = new Array(16);
+
 // connection manager
 var Conn = cc.Class.extend({
     socket:null,
@@ -14,43 +28,66 @@ var Conn = cc.Class.extend({
 	console.log("ontest");
     },
 
+    setCmdCallback: function(cmd, callback, arg) {
+	if (cmd > 16)
+	    return;
+
+	c = new Command(callback, arg);
+	CommandTable[cmd] = c
+    },
+
     onNetMessage: function(e) {
 	var obj = JSON.parse(e.data)
 
-	if (status == 0) {
-	    status = 1;
-	    console.log("id", obj.body.id);
-	    myShip.setid(obj.body.id);
+	if (obj.cmd > 16)
+	    return
+
+	c = CommandTable[obj.cmd];
+	if (c == undefined) {
+	    return;
+	}
+
+	c.callback(c.arg, obj);
+	return;
+
+//	if (status == 0) {
+//	    status = 1;
+//	    console.log("id", obj.body.id);
+//	    myShip.setid(obj.body.id);
 //	    myShip.parent.createSelf(obj.body.id);
-	    return;
-	}
-
-	if (obj.cmd == 3) {
-	    miniConn.msupdate(obj);
-	    return;
-	}
-
-	if (obj.cmd == 4) {
-	    miniConn.procKick(obj);
-	    return;
-	}
-
-	if (obj.cmd == 5) {
-	    miniConn.procAction(obj);
-	    return;
-	}
+//	    return;
+//	}
+//
+//	if (obj.cmd == 3) {
+//	    miniConn.msupdate(obj);
+//	    return;
+//	}
+//
+//	if (obj.cmd == 4) {
+//	    miniConn.procKick(obj);
+//	    return;
+//	}
+//
+//	if (obj.cmd == 5) {
+//	    miniConn.procAction(obj);
+//	    return;
+//	}
     },
 
-    start:function() {
+    start:function(name, pass, callback, arg) {
+	// set login callback
+	this.setCmdCallback(1, callback, arg)
+
 	socket = new WebSocket("ws://10.20.96.187:12345/minispace")
 	socket.onopen = function(e) {
+	    // send login
 	    var obj = {
 		cmd: 1,
 		errcode: 0,
 		seq: 0,
-		userid: "lijie",
+		userid: name,
 		body: {
-		    password: "testpassword"
+		    password: pass
 		}
 	    }
 	    var str = JSON.stringify(obj, undefined, 2)

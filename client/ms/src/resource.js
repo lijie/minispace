@@ -13,6 +13,12 @@ var s_beam1 = "beam-1x.png";
 var s_beam2 = "beam-2x.png";
 var s_beam3 = "beam-3x.png";
 
+var g_login = [
+    s_HelloWorld,
+    s_CloseNormal,
+    s_CloseSelected,
+];
+
 var g_resources = [
     //image
     s_HelloWorld,

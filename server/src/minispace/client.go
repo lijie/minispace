@@ -58,7 +58,6 @@ type Client struct {
 	conn *websocket.Conn
 	enable bool
 	login bool
-	insence bool
 	scene *Scene
 	lasterr int
 	pos *list.Element
@@ -152,14 +151,19 @@ func (c *Client) KickClient(other *Client) {
 	lock.Lock()
 }
 
-func forwardRoutine(ch chan *Packet, c *Client) {
+func (c *Client) forwardRoutine() {
 	var p *Packet
 	var err error
+
+	if c.scene == nil {
+		fmt.Printf("no scene?\n")
+		return
+	}
 
 	for {
 		p, err = c.readPacket(c.conn)
 		if err == nil {
-			ch <- p
+			c.scene.cli_chan <- p
 			continue
 		}
 
@@ -193,18 +197,10 @@ func (c *Client) Proc() {
 		return
 	}
 
-	// ok, login succ, add to a scene
-	ch, err := CurrentScene().AddClient(c)
-	if err != nil {
-		fmt.Printf("add client err")
-		return
-	}
-
 	fmt.Printf("%s login ok\n", c.Name)
-	c.insence = true
 
 	// wait msg and forward to scene
-	go forwardRoutine(ch, c)
+	go c.forwardRoutine()
 
 	for c.enable {
 		// wait client cmd
@@ -231,7 +227,6 @@ func NewClient(conn *websocket.Conn) *Client {
 		conn: conn,
 		enable: true,
 		login: false,
-		insence: false,
 		eventch: make(chan *Event, 128),
 	}
 	InitUser(&c.User)

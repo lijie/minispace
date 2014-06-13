@@ -2,7 +2,7 @@ package minispace
 
 import "sync"
 import "time"
-import _ "fmt"
+import "fmt"
 import "container/list"
 
 type Scene struct {
@@ -25,11 +25,11 @@ func CurrentScene() *Scene {
 }
 
 func (s *Scene) setId(id int) {
-	if id >= 16 {
+	if id > 16 {
 		return
 	}
 
-	s.idmap = s.idmap &^ (1 << uint(id))
+	s.idmap = s.idmap &^ (1 << uint(id - 1))
 }
 
 func (s *Scene) getId() (int, error) {
@@ -41,7 +41,7 @@ func (s *Scene) getId() (int, error) {
 	for i := 0; i < 16; i++ {
 		if tmp & 0x01 == 0 {
 			s.idmap = s.idmap | (1 << uint(i))
-			return i, nil
+			return (i + 1), nil
 		}
 		tmp = tmp >> 1
 	}
@@ -93,6 +93,8 @@ func (s *Scene) delClient(e *Event) {
 	if e.callback != nil {
 		e.callback(e)
 	}
+
+	s.num--
 }
 
 func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
@@ -139,6 +141,7 @@ func (s *Scene) addClient(e *Event) {
 		return
 	}
 
+	fmt.Printf("alloc id %d for user %s\n", id, e.sender.Name)
 	e.sender.Id = id
 	e.sender.pos = s.clientList.PushBack(e.sender)
 	s.num++
