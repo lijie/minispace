@@ -15,6 +15,13 @@ const (
 	kActionShoot = 1
 )
 
+// internal event
+const (
+	kEventAddClient = iota
+	kEventDelClient
+	kEventKickClient
+)
+
 // error
 var ErrReadPacket = errors.New("Read packet from client error")
 var ErrSceneFull = errors.New("Scene is full")

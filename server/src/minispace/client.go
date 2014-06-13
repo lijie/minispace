@@ -15,10 +15,6 @@ const (
 	PROC_KICK = 2
 )
 
-const (
-	CCMD_KICK = 1
-)
-
 // Msg from client
 type Msg struct {
 	Cmd float64 `json:"cmd"`
@@ -30,17 +26,16 @@ type Msg struct {
 
 // Msg wrapper for scene
 type Packet struct {
-	msg Msg
+	Msg
 	client *Client
-	ok bool
 }
 
-// Msg between client
-type clientMsg struct {
+// interal message
+type Event struct {
 	cmd int
 	data interface{}
 	sender *Client
-	callback func(cmd *clientMsg)
+	callback func(e *Event)
 }
 
 func NewMsg() *Msg {
@@ -54,7 +49,7 @@ func NewPacket(c *Client) *Packet {
 	p := &Packet{
 		client: c,
 	}
-	p.msg.Body = make(map[string]interface{})
+	p.Body = make(map[string]interface{})
 	return p
 }
 
@@ -67,7 +62,7 @@ type Client struct {
 	scene *Scene
 	lasterr int
 	pos *list.Element
-	cmdch chan *clientMsg
+	eventch chan *Event
 }
 
 type ClientProc func(*Client, *Msg) int
@@ -95,13 +90,9 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 	var err error
 	p := NewPacket(c)
 
-	p.ok = true
-	if err = websocket.JSON.Receive(conn, &p.msg); err != nil {
-		fmt.Printf("ClientMsg %#v\n", p.msg)
-		p.ok = false
+	if err = websocket.JSON.Receive(conn, &p.Msg); err != nil {
 		return p, err
 	} else {
-		fmt.Printf("ClientMsg %#v\n", p.msg)
 		return p, nil
 	}
 }
@@ -142,26 +133,23 @@ func (c *Client) KickName(name string) {
 }
 
 func (c *Client) KickClient(other *Client) {
-	cmd := &clientMsg{
-		cmd: CCMD_KICK,
+	cmd := &Event{
+		cmd: kEventKickClient,
 		sender: c,
 	}
 
 	var lock sync.Mutex
 	lock.Lock()
 
-	cmd.callback = func(cmd *clientMsg) {
+	cmd.callback = func(cmd *Event) {
 		lock.Unlock()
 	}
 
-	fmt.Printf("here1\n")
 	// send cmd
-	other.cmdch <- cmd
+	other.eventch <- cmd
 
-	fmt.Printf("here2\n")
 	// wait
 	lock.Lock()
-	fmt.Printf("here3\n")
 }
 
 func forwardRoutine(ch chan *Packet, c *Client) {
@@ -170,7 +158,7 @@ func forwardRoutine(ch chan *Packet, c *Client) {
 
 	for {
 		p, err = c.readPacket(c.conn)
-		if err == nil && p.ok {
+		if err == nil {
 			ch <- p
 			continue
 		}
@@ -189,23 +177,22 @@ func (c *Client) Proc() {
 
 	// login
 	p, err := c.readPacket(c.conn)
-	if err != nil || !p.ok {
+	if err != nil {
 		return
 	}
 
-	if p.msg.Cmd != kCmdUserLogin {
+	if p.Cmd != kCmdUserLogin {
 		fmt.Printf("not login, close client\n")
 		return
 	}
 
-	if c.ProcMsg(&p.msg) != PROC_OK {
+	if c.ProcMsg(&p.Msg) != PROC_OK {
 		// login failed
 		// should reply error
 		fmt.Printf("login failed, close client\n")
 		return
 	}
 
-	fmt.Printf("login ok\n")
 	// ok, login succ, add to a scene
 	ch, err := CurrentScene().AddClient(c)
 	if err != nil {
@@ -213,26 +200,23 @@ func (c *Client) Proc() {
 		return
 	}
 
-	fmt.Printf("add ok\n")
+	fmt.Printf("%s login ok\n", c.Name)
 	c.insence = true
 
 	// wait msg and forward to scene
 	go forwardRoutine(ch, c)
 
 	for c.enable {
-		fmt.Printf("here4\n")
 		// wait client cmd
-		cmd := <- c.cmdch
+		cmd := <- c.eventch
 
-		fmt.Printf("here5\n")
 		// be kicked
-		if cmd.cmd == CCMD_KICK {
+		if cmd.cmd == kEventKickClient {
 			CurrentScene().DelClient(c)
 			c.enable = false
 			c.Logout()
 
 			if cmd.callback != nil {
-				fmt.Printf("here6\n")
 				cmd.callback(cmd)
 			}
 		}
@@ -248,7 +232,7 @@ func NewClient(conn *websocket.Conn) *Client {
 		enable: true,
 		login: false,
 		insence: false,
-		cmdch: make(chan *clientMsg, 128),
+		eventch: make(chan *Event, 128),
 	}
 	InitUser(&c.User)
 	return c

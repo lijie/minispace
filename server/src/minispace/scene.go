@@ -2,25 +2,14 @@ package minispace
 
 import "sync"
 import "time"
-import "fmt"
+import _ "fmt"
 import "container/list"
-
-const (
-	SCENE_ADD_CLIENT = 1
-	SCENE_DEL_CLIENT = 2
-)
-
-type sceneCmd struct {
-	cmd int
-	c *Client
-	callback func(cmd int, c *Client, succ bool)
-}
 
 type Scene struct {
 	clientList *list.List
 	num int
 	cli_chan chan *Packet
-	cmd_chan chan *sceneCmd
+	cmd_chan chan *Event
 	lock sync.Mutex
 	enable bool
 	idmap int
@@ -60,12 +49,12 @@ func (s *Scene) getId() (int, error) {
 	return -1, ErrSceneFull
 }
 
-func (s *Scene) doSceneCmd(cmd *sceneCmd) {
-	switch cmd.cmd {
-	case SCENE_ADD_CLIENT:
-		s.addClient(cmd)
-	case SCENE_DEL_CLIENT:
-		s.delClient(cmd)
+func (s *Scene) doSceneEvent(e *Event) {
+	switch e.cmd {
+	case kEventAddClient:
+		s.addClient(e)
+	case kEventDelClient:
+		s.delClient(e)
 	}
 }
 
@@ -73,10 +62,10 @@ func (s *Scene) DelClient(c *Client) {
 	var lock sync.Mutex
 
 	lock.Lock()
-	cmd := sceneCmd{
-		cmd: SCENE_DEL_CLIENT,
-		c: c,
-		callback: func(cmd int, c *Client, succ bool) {
+	cmd := Event{
+		cmd: kEventDelClient,
+		sender: c,
+		callback: func(e *Event) {
 			lock.Unlock()
 		},
 	}
@@ -86,14 +75,14 @@ func (s *Scene) DelClient(c *Client) {
 	lock.Lock()
 }
 
-func (s *Scene) delClient(cmd *sceneCmd) {
+func (s *Scene) delClient(e *Event) {
 	if s.num == 0 {
-		cmd.callback(SCENE_DEL_CLIENT, cmd.c, true)
+		e.callback(e)
 		return
 	}
 
-	id := cmd.c.Id
-	s.clientList.Remove(cmd.c.pos)
+	id := e.sender.Id
+	s.clientList.Remove(e.sender.pos)
 
 	reply := NewMsg()
 	reply.Cmd = kCmdUserKick
@@ -101,7 +90,9 @@ func (s *Scene) delClient(cmd *sceneCmd) {
 	s.notifyAll(reply)
 
 	s.setId(id)
-	cmd.callback(SCENE_DEL_CLIENT, cmd.c, true)
+	if e.callback != nil {
+		e.callback(e)
+	}
 }
 
 func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
@@ -109,10 +100,11 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	var err error
 
 	lock.Lock()
-	cmd := sceneCmd{
-		cmd: SCENE_ADD_CLIENT,
-		c: c,
-		callback: func(cmd int, c *Client, succ bool) {
+	cmd := Event{
+		cmd: kEventAddClient,
+		sender: c,
+		callback: func(e *Event) {
+			succ := e.data.(bool)
 			if !succ {
 				err = ErrSceneFull
 			}
@@ -121,7 +113,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	}
 
 	s.cmd_chan <- &cmd
-	fmt.Printf("wati add client\n")
+//	fmt.Printf("wati add client\n")
 	// wait
 	lock.Lock()
 
@@ -131,24 +123,27 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	return s.cli_chan, nil
 }
 
-func (s *Scene) addClient(cmd *sceneCmd) {
-	cmd.c.scene = s
+func (s *Scene) addClient(e *Event) {
+	e.sender.scene = s
 
 	if s.num >= 16 {
-		cmd.callback(SCENE_ADD_CLIENT, cmd.c, false)
+		e.data = false
+		e.callback(e)
 		return
 	}
 
 	id, err := s.getId()
 	if err != nil {
-		cmd.callback(SCENE_ADD_CLIENT, cmd.c, false)
+		e.data = false
+		e.callback(e)
 		return
 	}
 
-	cmd.c.Id = id
-	cmd.c.pos = s.clientList.PushBack(cmd.c)
+	e.sender.Id = id
+	e.sender.pos = s.clientList.PushBack(e.sender)
 	s.num++
-	cmd.callback(SCENE_ADD_CLIENT, cmd.c, true)
+	e.data = true
+	e.callback(e)
 }
 
 func (s *Scene) notifyAll(msg *Msg) {
@@ -211,16 +206,16 @@ func (s *Scene) Run() {
 	}()
 
 	var p *Packet
-	var cmd *sceneCmd
+	var e *Event
 
 	for s.enable {
 		select {
 		case p = <-s.cli_chan:
-			p.client.ProcMsg(&p.msg)
+			p.client.ProcMsg(&p.Msg)
 		case _ = <- timer_ch:
 			s.runFrame(50.0)
-		case cmd = <- s.cmd_chan:
-			s.doSceneCmd(cmd)
+		case e = <- s.cmd_chan:
+			s.doSceneEvent(e)
 		}
 	}
 }
@@ -229,7 +224,7 @@ func NewScene() *Scene {
 	return &Scene{
 		enable: true,
 		cli_chan: make(chan *Packet, 1024),
-		cmd_chan: make(chan *sceneCmd, 128),
+		cmd_chan: make(chan *Event, 128),
 		clientList: list.New(),
 	}
 }

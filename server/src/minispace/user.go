@@ -66,7 +66,7 @@ func (b *Beam) Update(delta float64) bool {
 	r := 1000.0 / (3.0 * 1000.0) * delta;
 	b.X = b.X + r * math.Sin(b.radian)
 	b.Y = b.Y + r * math.Cos(b.radian)
-	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
+//	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
 
 	if b.X < 0 || b.X > 960 {
 		return false
@@ -81,7 +81,12 @@ type User struct {
 	UserDb
 	ShipStatus
 	ShipAttr
+	dirty bool
 	beamList *list.List
+}
+
+func (u *User) MarkDirty() {
+	u.dirty = true
 }
 
 func (u *User) Update(delta float64) {
@@ -118,6 +123,16 @@ func (u *User) CheckHit(target *User) bool {
 
 func (u *User) Logout() {
 	DeleteOnline(u.Name)
+
+	if u.dirty {
+		err := SharedDB().Save(u.Name, &u.UserDb)
+		if err != nil {
+			fmt.Printf("user %s, save db failed\n", u.Name)
+			return
+		}
+
+		u.dirty = false
+	}
 }
 
 func init() {
@@ -164,13 +179,17 @@ func procUserLogin(c *Client, msg *Msg) int {
 		return PROC_ERR
 	}
 
+	now := time.Now()
 	if !newbie {
 		// check password
 		fmt.Printf("registed user %#v\n", c.User.UserDb)
+		c.User.UserDb.LoginTime = now.Unix()
+		c.MarkDirty()
 	} else {
 		c.User.UserDb.Name = msg.Userid
 		c.User.UserDb.Pass = password.(string)
-		c.User.UserDb.RegTime = time.Now().Unix()
+		c.User.UserDb.RegTime = now.Unix()
+		c.User.UserDb.LoginTime = now.Unix()
 		fmt.Printf("create new user %#v\n", c.User.UserDb)
 
 		// flush to db
