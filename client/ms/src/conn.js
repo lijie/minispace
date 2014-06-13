@@ -21,22 +21,22 @@ var Conn = cc.Class.extend({
 	    status = 1;
 	    console.log("id", obj.body.id);
 	    myShip.setid(obj.body.id);
-	    myShip.parent.createSelf(obj.body.id);
+//	    myShip.parent.createSelf(obj.body.id);
 	    return;
 	}
 
 	if (obj.cmd == 3) {
-	    myConn.msupdate(obj);
+	    miniConn.msupdate(obj);
 	    return;
 	}
 
 	if (obj.cmd == 4) {
-	    myConn.procKick(obj);
+	    miniConn.procKick(obj);
 	    return;
 	}
 
 	if (obj.cmd == 5) {
-	    myConn.procAction(obj);
+	    miniConn.procAction(obj);
 	    return;
 	}
     },
@@ -49,6 +49,9 @@ var Conn = cc.Class.extend({
 		errcode: 0,
 		seq: 0,
 		userid: "lijie",
+		body: {
+		    password: "testpassword"
+		}
 	    }
 	    var str = JSON.stringify(obj, undefined, 2)
 	    socket.send(str)
@@ -106,4 +109,4 @@ var Conn = cc.Class.extend({
     }
 });
 
-var myConn = new Conn();
+var miniConn = new Conn();

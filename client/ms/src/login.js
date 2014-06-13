@@ -11,6 +11,7 @@ var LoginLayer = cc.Layer.extend({
     _widget: null,
     _uilayer: null,
     _inputname: null,
+    _inputpass: null,
     _btngo: null,
 
     init:function () {
@@ -28,6 +29,8 @@ var LoginLayer = cc.Layer.extend({
 
         this._inputname = this._uiLayer.getWidgetByName("InputName");
         this._inputname.addEventListenerTextField(this.textFieldEvent, this);
+        this._inputpass = this._uiLayer.getWidgetByName("InputPass");
+        this._inputpass.addEventListenerTextField(this.textFieldEvent, this);
 
         this._btngo = this._uiLayer.getWidgetByName("BtnGo");
         this._btngo.addTouchEventListener(this.touchEvent ,this);
@@ -53,9 +56,9 @@ var LoginLayer = cc.Layer.extend({
         switch (type) {
             case ccs.TouchEventType.ended:
 	    console.log("go");
-	    myConn.start(this._inputname.getStringValue(),
-			 this._inputpass.getStringValue(),
-			 this.loginCallback, this);
+	    miniConn.start(this._inputname.getStringValue(),
+			   this._inputpass.getStringValue(),
+			   this.loginCallback, this);
             break;
 
             case ccs.TouchEventType.began:

@@ -116,6 +116,10 @@ func (u *User) CheckHit(target *User) bool {
 	return false
 }
 
+func (u *User) Logout() {
+	DeleteOnline(u.Name)
+}
+
 func init() {
 	ClientProcRegister(kCmdUserUpdate, procUserUpdate)
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
@@ -132,8 +136,20 @@ func procUserUpdate(c *Client, msg *Msg) int {
 }
 
 func procUserLogin(c *Client, msg *Msg) int {
+	if c.login {
+		// repeat login request is error
+		return PROC_KICK
+	}
+
+	// user already login? kick old
+	if o := SearchOnline(msg.Userid); o != nil {
+		fmt.Printf("kick %s for relogin\n", msg.Userid)
+		c.KickClient(o)
+	}
+
 	password, ok := msg.Body["password"]
 	if !ok {
+		fmt.Printf("client %#v no password, fail\n", c)
 		c.SetErrCode(ErrCodeInvalidProto)
 		return PROC_ERR
 	}
@@ -150,16 +166,24 @@ func procUserLogin(c *Client, msg *Msg) int {
 
 	if !newbie {
 		// check password
+		fmt.Printf("registed user %#v\n", c.User.UserDb)
 	} else {
 		c.User.UserDb.Name = msg.Userid
 		c.User.UserDb.Pass = password.(string)
 		c.User.UserDb.RegTime = time.Now().Unix()
+		fmt.Printf("create new user %#v\n", c.User.UserDb)
+
 		// flush to db
 		err = SharedDB().Save(msg.Userid, &c.User.UserDb)
 		if err != nil {
+			fmt.Printf("User %s save db failed\n", c.Name)
 			c.SetErrCode(ErrCodeDBError)
 			return PROC_ERR
 		}
+	}
+
+	if InsertOnline(msg.Userid, c) != nil {
+		return PROC_KICK
 	}
 
 	// all done, send reply

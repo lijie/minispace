@@ -2,7 +2,7 @@ package minispace
 
 import "sync"
 import "time"
-import _ "fmt"
+import "fmt"
 import "container/list"
 
 const (
@@ -121,6 +121,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	}
 
 	s.cmd_chan <- &cmd
+	fmt.Printf("wati add client\n")
 	// wait
 	lock.Lock()
 
@@ -228,6 +229,7 @@ func NewScene() *Scene {
 	return &Scene{
 		enable: true,
 		cli_chan: make(chan *Packet, 1024),
+		cmd_chan: make(chan *sceneCmd, 128),
 		clientList: list.New(),
 	}
 }
