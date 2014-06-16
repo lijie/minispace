@@ -18,111 +18,6 @@ ROTATE_RIGHT = 2
 
 MAX_BEAMCOUNT = 5
 
-// connection manager
-var Conn = cc.Class.extend({
-    socket:null,
-    status:0,
-
-    ctor:function() {
-	this.ontest();
-    },
-
-    ontest: function() {
-	console.log("ontest");
-    },
-
-    onNetMessage: function(e) {
-	var obj = JSON.parse(e.data)
-
-	if (status == 0) {
-	    status = 1;
-	    console.log("id", obj.body.id);
-	    myShip.setid(obj.body.id);
-	    myShip.parent.createSelf(obj.body.id);
-	    return;
-	}
-
-	if (obj.cmd == 3) {
-	    myConn.msupdate(obj);
-	    return;
-	}
-
-	if (obj.cmd == 4) {
-	    myConn.procKick(obj);
-	    return;
-	}
-
-	if (obj.cmd == 5) {
-	    myConn.procAction(obj);
-	    return;
-	}
-    },
-
-    start:function() {
-	socket = new WebSocket("ws://10.20.96.187:12345/minispace")
-	socket.onopen = function(e) {
-	    var obj = {
-		cmd: 1,
-		errcode: 0,
-		seq: 0,
-		userid: "lijie",
-	    }
-	    var str = JSON.stringify(obj, undefined, 2)
-	    socket.send(str)
-	}
-
-	socket.onclose = function(e) {}
-	socket.onerror = function(e) {}
-	socket.onmessage = this.onNetMessage;
-	this.socket = socket
-    },
-
-    send:function(str) {
-	this.socket.send(str);
-    },
-
-    msupdate:function(obj) {
-	for (var i = 0; i < obj.body.users.length; i++) {
-	    s = obj.body.users[i];
-	    if (s.id == myShip.id) {
-		continue;
-	    }
-
-	    o = otherShips[s.id];
-	    if (o == undefined || o == null) {
-		otherShips[s.id] = new Ship();
-		otherShips[s.id].setid(s.id);
-		console.log("create other ship", s.id);
-		myShip.parent.createOtherShip(s.id);
-	    }
-	    otherShips[s.id].setPos(s.x, s.y, s.angle);
-	    otherShips[s.id].setMove(s.move, s.rotate);
-
-	    if (s.act == 1) {
-		console.log("recv act", s.act, "id", s.id);
-		otherShips[s.id].shootBeam(false);
-	    }
-	}
-    },
-
-    procAction: function(obj) {
-	this.msupdate(obj);
-	for (var i = 0; i < obj.body.users.length; i++) {
-	    s = obj.body.users[i];
-	    if (s.id == myShip.id) {
-		continue;
-	    }
-
-	    o = otherShips[s.id];
-	    o.shootBeam(false);
-	}
-    },
-
-    procKick:function(obj) {
-	myShip.parent.removeOtherShip(obj.body.id);
-    }
-});
-
 // no use yet
 var Beam = cc.Class.extend({
     sprite:null,
@@ -323,16 +218,14 @@ var Ship = cc.Class.extend({
 
 var myShip = new Ship();
 var otherShips = new Array(16);
+// save data for others
+var THEM = new Array(16);
 
 var GameLayer = cc.Layer.extend({
     isMouseDown:false,
     helloImg:null,
     helloLabel:null,
     circle:null,
-//  sprite:null,
-//  ship:null,
-    _shipro:0,
-    conn:null,
 
     init:function () {
 
@@ -364,11 +257,6 @@ var GameLayer = cc.Layer.extend({
         // 3. add your codes below...
         // add a label shows "Hello World"
         // create and initialize a label
-//        this.helloLabel = cc.LabelTTF.create("Hello World", "Impact", 38);
-//        // position the label on the center of the screen
-//        this.helloLabel.setPosition(size.width / 2, size.height - 40);
-//        // add the label as a child to this layer
-//        this.addChild(this.helloLabel, 5);
 
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 0.05);
@@ -382,18 +270,22 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(3, this.procUserNotify, this);
 	miniConn.setCmdCallback(4, this.procKick, this);
 	miniConn.setCmdCallback(5, this.procAction, this);
+	miniConn.setCmdCallback(6, this.procAddUser, this);
 
 	this.createSelf(myShip.id);
     },
 
     createSelf: function(id) {
         var size = cc.Director.getInstance().getWinSize();
-	myShip.create(id, "LiJie", this, size.width / 2, size.height / 2);
+	myShip.create(id, ME.name, this, size.width / 2, size.height / 2);
     },
 
     createOtherShip: function(id) {
         var size = cc.Director.getInstance().getWinSize();
-	otherShips[id].create(id, "test", this, size.width / 2, size.height / 2);
+	name = ""
+	if (THEM[id] != undefined && THEM[id] != null)
+	    name = THEM[id].name
+	otherShips[id].create(id, name, this, size.width / 2, size.height / 2);
     },
 
     removeOtherShip: function(id) {
@@ -525,6 +417,18 @@ var GameLayer = cc.Layer.extend({
 
     procKick: function(target, obj) {
 	target.removeOtherShip(obj.body.id);
+    },
+
+    procAddUser: function(target, obj) {
+	console.log("new user join", obj.body.name);
+	if (obj.body.id > 16)
+	    return;
+
+	o = THEM[obj.body.id];
+	if (o == undefined || o == null) {
+	    THEM[obj.body.id] = new User();
+	}
+	THEM[obj.body.id].name = obj.body.name;
     }
 });
 
@@ -535,8 +439,5 @@ var GameScene = cc.Scene.extend({
         this.addChild(layer);
         layer.init();
 	myShip.setLayer(layer);
-//	myConn.start();
     }
 });
-
-var myConn = new Conn();

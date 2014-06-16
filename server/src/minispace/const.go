@@ -9,6 +9,7 @@ const (
 	kCmdUserNotify = 3
 	kCmdUserKick = 4
 	kCmdUserAction = 5
+	kCmdAddUser = 6
 )
 
 const (

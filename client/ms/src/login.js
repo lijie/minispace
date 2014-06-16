@@ -7,6 +7,11 @@
 var TEXT_INPUT_FONT_NAME = "Arial";
 var TEXT_INPUT_FONT_SIZE = 36;
 
+var User = cc.Class.extend({
+    name: null,
+    score: null
+});
+
 var LoginLayer = cc.Layer.extend({
     _widget: null,
     _uilayer: null,
@@ -59,6 +64,7 @@ var LoginLayer = cc.Layer.extend({
         switch (type) {
             case ccs.TouchEventType.ended:
 	    console.log("go");
+	    ME.name = this._inputname.getStringValue();
 	    miniConn.start(this._inputname.getStringValue(),
 			   this._inputpass.getStringValue(),
 			   this.loginCallback, this);
@@ -76,6 +82,9 @@ var LoginLayer = cc.Layer.extend({
 	console.log("text:", this._inputname.getStringValue());
     }
 });
+
+// save data of me
+var ME = new User();
 
 var LoginScene = cc.Scene.extend({
     onEnter:function () {

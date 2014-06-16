@@ -147,6 +147,13 @@ func (s *Scene) addClient(e *Event) {
 	s.num++
 	e.data = true
 	e.callback(e)
+
+	// tell all others I'm here
+	reply := NewMsg()
+	reply.Cmd = kCmdAddUser
+	reply.Body["id"] = id
+	reply.Body["name"] = e.sender.Name
+	s.notifyAll(reply)
 }
 
 func (s *Scene) notifyAll(msg *Msg) {

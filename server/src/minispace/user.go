@@ -165,8 +165,8 @@ func procUserLogin(c *Client, msg *Msg) int {
 	}
 
 	password, ok := msg.Body["password"]
-	if !ok {
-		fmt.Printf("client %#v no password, fail\n", c)
+	if !ok || len(password.(string)) < 3 {
+		fmt.Printf("client %#v no password or passwoard too short, fail\n", c)
 		c.SetErrCode(ErrCodeInvalidProto)
 		return PROC_ERR
 	}
@@ -187,6 +187,12 @@ func procUserLogin(c *Client, msg *Msg) int {
 		fmt.Printf("registed user %#v\n", c.User.UserDb)
 		c.User.UserDb.LoginTime = now.Unix()
 		c.MarkDirty()
+
+		// TODO: use md5 at least...
+		if password.(string) != c.Pass {
+			fmt.Printf("user %s password error\n", c.Name)
+			return PROC_ERR
+		}
 	} else {
 		c.User.UserDb.Name = msg.Userid
 		c.User.UserDb.Pass = password.(string)
