@@ -12,6 +12,7 @@ var s_ship8 = "ship-8.png";
 var s_beam1 = "beam-1x.png";
 var s_beam2 = "beam-2x.png";
 var s_beam3 = "beam-3x.png";
+var s_bg = "background.png";
 
 var g_login = [
     s_HelloWorld,
@@ -35,6 +36,7 @@ var g_resources = [
     s_beam1,
     s_beam2,
     s_beam3,
+    s_bg,
 
     //plist
 

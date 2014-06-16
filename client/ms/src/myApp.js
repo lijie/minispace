@@ -182,7 +182,7 @@ var Ship = cc.Class.extend({
 	    cmd: 2,
 	    errcode: 0,
 	    seq: 0,
-	    userid: "lijie",
+	    userid: ME.name,
 	    body: {
 		x: this.sprite.getPositionX(),
 		y: this.sprite.getPositionY(),
@@ -265,6 +265,25 @@ var GameLayer = cc.Layer.extend({
 
     onEnter: function() {
 	this._super();
+
+	// add background
+	batch = cc.SpriteBatchNode.create(s_bg, 15);
+	for (var i = 0; i < 5; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 0);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 5; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 256);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 5; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 512);
+	    batch.addChild(p);
+	}
+	this.addChild(batch, 0);
 
 	// register cmd
 	miniConn.setCmdCallback(3, this.procUserNotify, this);

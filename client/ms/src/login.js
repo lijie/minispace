@@ -9,7 +9,35 @@ var TEXT_INPUT_FONT_SIZE = 36;
 
 var User = cc.Class.extend({
     name: null,
-    score: null
+    score: null,
+    beams: null,
+
+    ctor: function() {
+	this.beams = new Array(5);
+    },
+
+    getBeam: function() {
+	for (var i = 0; i < 5; i++) {
+	    if (this.beams[i] == undefined ||
+		this.beams[i] == null) {
+		return i;
+	    }
+	}
+	return null;
+    },
+
+    clearBeam: function(idx, hit) {
+	if (idx < 0 || idx > 5)
+	    return;
+
+	if (this.beams[idx] == undefined ||
+	    this.beams[idx] == null)
+	    return;
+
+	// stop beam action
+
+	// if hit, show affect
+    }
 });
 
 var LoginLayer = cc.Layer.extend({
