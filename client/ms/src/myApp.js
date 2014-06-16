@@ -380,6 +380,7 @@ var GameLayer = cc.Layer.extend({
 
 	// register cmd
 	miniConn.setCmdCallback(3, this.procUserNotify, this);
+	miniConn.setCmdCallback(4, this.procKick, this);
 	miniConn.setCmdCallback(5, this.procAction, this);
 
 	this.createSelf(myShip.id);
@@ -520,6 +521,10 @@ var GameLayer = cc.Layer.extend({
 	    o = otherShips[s.id];
 	    o.shootBeam(false);
 	}
+    },
+
+    procKick: function(target, obj) {
+	target.removeOtherShip(obj.body.id);
     }
 });
 

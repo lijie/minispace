@@ -54,7 +54,7 @@
           "touchAble": true,
           "useMergedTexture": false,
           "visible": true,
-          "width": 59,
+          "width": 196,
           "x": 480,
           "y": 363,
           "areaHeight": 0,
@@ -62,12 +62,12 @@
           "fontFile": null,
           "fontName": "微软雅黑",
           "fontSize": 20,
-          "maxLength": 10,
+          "maxLength": 16,
           "maxLengthEnable": true,
           "passwordEnable": false,
           "passwordStyleText": "*",
           "placeHolder": "input username here",
-          "text": "ni hao"
+          "text": ""
         }
       },
       {
@@ -114,7 +114,7 @@
           "fontFile": null,
           "fontName": "微软雅黑",
           "fontSize": 20,
-          "maxLength": 10,
+          "maxLength": 16,
           "maxLengthEnable": true,
           "passwordEnable": true,
           "passwordStyleText": "*",
