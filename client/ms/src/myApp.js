@@ -507,8 +507,10 @@ var GameLayer = cc.Layer.extend({
 	}
     },
 
+    // no use
     procAction: function(target, obj) {
-	this.procUserNotify(target, obj);
+	console.log("procAction");
+	target.procUserNotify(target, obj);
 	for (var i = 0; i < obj.body.users.length; i++) {
 	    s = obj.body.users[i];
 	    if (s.id == myShip.id) {

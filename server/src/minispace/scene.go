@@ -163,14 +163,16 @@ func (s *Scene) updateAll() {
 	var c *Client
 	var n []*ShipStatus
 
+	clear := false
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
 		c = p.Value.(*Client)
 		if !c.login {
 			continue
 		}
 		n = append(n, &c.User.ShipStatus)
-		// clear action
-		c.Act = 0
+		if c.Act != 0 {
+			clear = true
+		}
 	}
 
 	msg := NewMsg()
@@ -178,6 +180,19 @@ func (s *Scene) updateAll() {
 	msg.Body["users"] = n
 
 	s.notifyAll(msg)
+
+	if !clear {
+		return
+	}
+
+	// clear action
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		c = p.Value.(*Client)
+		if !c.login {
+			continue
+		}
+		c.Act = 0
+	}
 }
 
 func (s *Scene) procTimeout() {

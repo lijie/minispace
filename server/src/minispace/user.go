@@ -63,15 +63,17 @@ func (b *Beam) Hit(target *User) bool {
 
 // beam speed: 1000pix/3seconds
 func (b *Beam) Update(delta float64) bool {
+	// update position
 	r := 1000.0 / (3.0 * 1000.0) * delta;
 	b.X = b.X + r * math.Sin(b.radian)
 	b.Y = b.Y + r * math.Cos(b.radian)
 //	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
 
-	if b.X < 0 || b.X > 960 {
+	// if out of screen?
+	if b.X < 0 || b.X > kScreenWidth {
 		return false
 	}
-	if b.Y < 0 || b.Y > 640 {
+	if b.Y < 0 || b.Y > kScreenHeight {
 		return false
 	}
 	return true
@@ -231,6 +233,7 @@ func procUserAction(c *Client, msg *Msg) int {
 	c.Rotate = int(msg.Body["rotate"].(float64))
 	c.Act = int(msg.Body["act"].(float64))
 
+	fmt.Printf("action %#v\n", c.User.ShipStatus);
 	if c.Act == 1 {
 		b := &Beam{c.X, c.Y, c.Angle + 90, (c.Angle + 90) * math.Pi / 180, nil}
 		b.pos = c.beamList.PushBack(b)

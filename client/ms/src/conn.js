@@ -44,6 +44,7 @@ var Conn = cc.Class.extend({
 
 	c = CommandTable[obj.cmd];
 	if (c == undefined) {
+	    console.log("cmd", obj.cmd, "undefined");
 	    return;
 	}
 

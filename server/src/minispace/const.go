@@ -22,6 +22,12 @@ const (
 	kEventKickClient
 )
 
+// screen size
+const (
+	kScreenWidth = 960
+	kScreenHeight = 640
+)
+
 // error
 var ErrReadPacket = errors.New("Read packet from client error")
 var ErrSceneFull = errors.New("Scene is full")
