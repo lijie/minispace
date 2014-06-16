@@ -125,6 +125,52 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	return s.cli_chan, nil
 }
 
+type ProtoAddUser struct {
+	Id int `json:"id"`
+	Name string `json:"name"`
+}
+
+func (s *Scene) notifyAddUser(c *Client) {
+	var t *Client
+	var n []*ProtoAddUser
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		t = p.Value.(*Client)
+		if !t.login {
+			continue
+		}
+		if t == c {
+			continue
+		}
+		data := &ProtoAddUser{
+			Id: t.Id,
+			Name: t.Name,
+		}
+		n = append(n, data)
+	}
+
+	msg := NewMsg()
+	msg.Cmd = kCmdAddUser
+	msg.Body["users"] = n
+	fmt.Printf("notfiyAddUser %#v\n", msg)
+	c.Reply(msg)
+}
+
+func (s *Scene) broadAddUser(c *Client) {
+	reply := NewMsg()
+	reply.Cmd = kCmdAddUser
+
+	var n []*ProtoAddUser
+	data := &ProtoAddUser{
+		Id: c.Id,
+		Name: c.Name,
+	}
+	n = append(n, data)
+
+	reply.Body["users"] = n
+	fmt.Printf("broadAddUser %#v\n", reply)
+	s.notifyAll(reply)
+}
+
 func (s *Scene) addClient(e *Event) {
 	e.sender.scene = s
 
@@ -134,6 +180,7 @@ func (s *Scene) addClient(e *Event) {
 		return
 	}
 
+	// each user have an unique id
 	id, err := s.getId()
 	if err != nil {
 		e.data = false
@@ -142,6 +189,7 @@ func (s *Scene) addClient(e *Event) {
 	}
 
 	fmt.Printf("alloc id %d for user %s\n", id, e.sender.Name)
+	// add ok
 	e.sender.Id = id
 	e.sender.pos = s.clientList.PushBack(e.sender)
 	s.num++
@@ -149,11 +197,10 @@ func (s *Scene) addClient(e *Event) {
 	e.callback(e)
 
 	// tell all others I'm here
-	reply := NewMsg()
-	reply.Cmd = kCmdAddUser
-	reply.Body["id"] = id
-	reply.Body["name"] = e.sender.Name
-	s.notifyAll(reply)
+	s.broadAddUser(e.sender)
+
+	// show enemies
+	s.notifyAddUser(e.sender)
 }
 
 func (s *Scene) notifyAll(msg *Msg) {

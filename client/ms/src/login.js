@@ -70,6 +70,8 @@ var LoginLayer = cc.Layer.extend({
 
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 5);
+
+	miniConn.setCmdCallback(6, this.procAddUser, this);
     },
 
     loginCallback: function(target, obj) {
@@ -108,6 +110,26 @@ var LoginLayer = cc.Layer.extend({
 
     timeCallback: function(dt) {
 	console.log("text:", this._inputname.getStringValue());
+    },
+
+    procAddUser: function(target, obj) {
+	console.log("adduser");
+	console.log("adduser", obj);
+	console.log("adduser", obj.body);
+	console.log("adduser", obj.body.users);
+	for (var i = 0; i < obj.body.users.length; i++) {
+	    if (obj.body.users[i].id > 16)
+		continue;
+
+	    console.log("adduser", obj.body.users[i]);
+	    u = obj.body.users[i];
+	    o = THEM[u.id];
+	    if (o == undefined || o == null) {
+		THEM[u.id] = new User();
+	    }
+	    console.log("new user join", u.name);
+	    THEM[u.id].name = u.name;
+	}
     }
 });
 

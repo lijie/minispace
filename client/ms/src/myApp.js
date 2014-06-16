@@ -289,7 +289,6 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(3, this.procUserNotify, this);
 	miniConn.setCmdCallback(4, this.procKick, this);
 	miniConn.setCmdCallback(5, this.procAction, this);
-	miniConn.setCmdCallback(6, this.procAddUser, this);
 
 	this.createSelf(myShip.id);
     },
@@ -436,18 +435,6 @@ var GameLayer = cc.Layer.extend({
 
     procKick: function(target, obj) {
 	target.removeOtherShip(obj.body.id);
-    },
-
-    procAddUser: function(target, obj) {
-	console.log("new user join", obj.body.name);
-	if (obj.body.id > 16)
-	    return;
-
-	o = THEM[obj.body.id];
-	if (o == undefined || o == null) {
-	    THEM[obj.body.id] = new User();
-	}
-	THEM[obj.body.id].name = obj.body.name;
     }
 });
 
