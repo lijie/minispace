@@ -94,13 +94,20 @@ func (u *User) MarkDirty() {
 	u.dirty = true
 }
 
-func (u *User) Update(delta float64) {
+func (u *User) Update(delta float64, s *Scene) {
 	var tmp *list.Element
+	var beam *Beam
+
 	for b := u.beamList.Front(); b != nil; {
+		beam = b.Value.(*Beam)
 		tmp = b.Next()
-		if !(b.Value.(*Beam).Update(delta)) {
+
+		if !beam.Update(delta) {
 			u.beamList.Remove(b)
+			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
+			s.broadStopBeam(u.conn, int(beam.id), 0)
 		}
+
 		b = tmp
 	}
 }

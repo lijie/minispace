@@ -262,7 +262,7 @@ func (s *Scene) runFrame(delta float64) {
 
 	// update for each user
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		p.Value.(*Client).Update(delta)
+		p.Value.(*Client).Update(delta, s)
 	}
 
 	// check hit for each ship
