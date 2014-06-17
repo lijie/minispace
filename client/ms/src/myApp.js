@@ -44,6 +44,7 @@ var Ship = cc.Class.extend({
     rotate: ROTATE_NONE,
     parent:null,
     label:null,
+    bloodbar: null,
 
     ctor:function() {
     },
@@ -105,6 +106,10 @@ var Ship = cc.Class.extend({
 
     getid:function() {
 	return this.id;
+    },
+
+    sethp: function(hp) {
+	this.bloodbar.setPercentage(hp);
     },
 
     moveForward: function(dt) {
@@ -322,6 +327,19 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(8, this.procShootBeam, this);
 
 	this.createSelf(myShip.id);
+
+	// add blood bar
+        var bloodbar = cc.ProgressTimer.create(cc.Sprite.create(s_hp));
+	bloodbar.setType(cc.PROGRESS_TIMER_TYPE_BAR);
+        bloodbar.setMidpoint(cc.p(0, 0));
+        bloodbar.setBarChangeRate(cc.p(1, 0));
+        this.addChild(bloodbar);
+	bloodbar.setAnchorPoint(0, 0);
+        bloodbar.setPosition(40, 600);
+	bloodbar.setPercentage(100);
+        //var to1 = cc.ProgressTo.create(2, 100);
+        //bloodbar.runAction(cc.RepeatForever.create(to1));
+	myShip.bloodbar = bloodbar;
     },
 
     createSelf: function(id) {
@@ -429,6 +447,7 @@ var GameLayer = cc.Layer.extend({
 	for (var i = 0; i < obj.body.users.length; i++) {
 	    s = obj.body.users[i];
 	    if (s.id == myShip.id) {
+		myShip.sethp(s.hp);
 		continue;
 	    }
 

@@ -25,6 +25,7 @@ type ShipStatus struct {
 	Rotate int `json:"rotate"`
 	// shoot
 	// Act int `json:"act"`
+	Hp int `json:"hp"`
 	// ship id
 	Id int `json:"id"`
 }
@@ -134,8 +135,14 @@ func (u *User) CheckHit(target *User, s *Scene) {
 
 		u.beamList.Remove(b)
 		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-
 		s.broadStopBeam(u.conn, int(beam.id), 1)
+
+		target.Hp -= 10
+		if target.Hp < 0 {
+			// will broad to all client int next frame
+			// set 100 for test
+			target.Hp = 100
+		}
 		return
 	}
 
@@ -294,4 +301,5 @@ func procUserAction(c *Client, msg *Msg) int {
 func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
 	u.conn = c
+	u.Hp = 100
 }
