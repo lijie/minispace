@@ -6,10 +6,12 @@ import "errors"
 const (
 	kCmdUserLogin = 1
 	kCmdUserUpdate = 2
-	kCmdUserNotify = 3
+	kCmdShipStatus = 3
 	kCmdUserKick = 4
 	kCmdUserAction = 5
 	kCmdAddUser = 6
+	kCmdStopBeam = 7
+	kCmdShootBeam = 8
 )
 
 const (

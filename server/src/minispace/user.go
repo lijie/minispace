@@ -24,7 +24,7 @@ type ShipStatus struct {
 	// left-rotate or right->rotate
 	Rotate int `json:"rotate"`
 	// shoot
-	Act int `json:"act"`
+	// Act int `json:"act"`
 	// ship id
 	Id int `json:"id"`
 }
@@ -50,6 +50,7 @@ func (r *Rect) InRect(x, y int) bool {
 type Beam struct {
 	X, Y, Angle float64
 	radian float64
+	id float64
 	pos *list.Element
 }
 
@@ -84,7 +85,9 @@ type User struct {
 	ShipStatus
 	ShipAttr
 	dirty bool
+	beamMap int
 	beamList *list.List
+	conn *Client
 }
 
 func (u *User) MarkDirty() {
@@ -102,25 +105,34 @@ func (u *User) Update(delta float64) {
 	}
 }
 
-func (u *User) CheckHitAll(l *list.List) {
+func (u *User) CheckHitAll(l *list.List, s *Scene) {
 	for p := l.Front(); p != nil; p = p.Next() {
-		u.CheckHit(&p.Value.(*Client).User)
+		u.CheckHit(&p.Value.(*Client).User, s)
 	}
 }
 
-func (u *User) CheckHit(target *User) bool {
+func (u *User) CheckHit(target *User, s *Scene) {
 	if u == target {
-		return false
+		return
 	}
 
+	var beam *Beam
 	for b := u.beamList.Front(); b != nil; b = b.Next() {
-		if b.Value.(*Beam).Hit(target) {
-			fmt.Printf("%d hit target %d\n", u.Id, target.Id)
-			return true
+		beam = b.Value.(*Beam)
+		if !beam.Hit(target) {
+			continue
 		}
+
+		fmt.Printf("%d hit target %d\n", u.Id, target.Id)
+
+		u.beamList.Remove(b)
+		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
+
+		s.broadStopBeam(u.conn, int(beam.id), 1)
+		return
 	}
 
-	return false
+	return
 }
 
 func (u *User) Logout() {
@@ -231,22 +243,48 @@ func procUserLogin(c *Client, msg *Msg) int {
 	return PROC_OK
 }
 
+type ProtoShootBeam struct {
+	ShipStatus
+	BeamId float64 `json:"beamid"`
+}
+
 func procUserAction(c *Client, msg *Msg) int {
 	c.X = msg.Body["x"].(float64)
 	c.Y = msg.Body["y"].(float64)
 	c.Angle = msg.Body["angle"].(float64)
 	c.Move = int(msg.Body["move"].(float64))
 	c.Rotate = int(msg.Body["rotate"].(float64))
-	c.Act = int(msg.Body["act"].(float64))
 
-	fmt.Printf("action %#v\n", c.User.ShipStatus);
-	if c.Act == 1 {
-		b := &Beam{c.X, c.Y, c.Angle + 90, (c.Angle + 90) * math.Pi / 180, nil}
+	act := int(msg.Body["act"].(float64))
+	if act == 1 {
+		beamid := msg.Body["beamid"].(float64)
+		// check beamid is valid
+		id := uint(beamid)
+		if ((1 << id) & c.beamMap) != 0 {
+			// error
+			fmt.Printf("beamid %d already used\n", id)
+			return PROC_ERR
+		}
+		// save beamid and beam
+		c.beamMap |= (1 << id)
+		b := &Beam{
+			c.X, c.Y, c.Angle + 90,
+			(c.Angle + 90) * math.Pi / 180,
+			beamid, nil,
+		}
 		b.pos = c.beamList.PushBack(b)
+		// broad to all players
+		data := &ProtoShootBeam{
+			BeamId: beamid, 
+		}
+		data.ShipStatus = c.User.ShipStatus
+		c.scene.BroadProto(c, true, kCmdShootBeam, "data", data)
 	}
+
 	return PROC_OK
 }
 
-func InitUser(u *User) {
+func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
+	u.conn = c
 }

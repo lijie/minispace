@@ -42,7 +42,6 @@ var Ship = cc.Class.extend({
     sprite: null,
     move: MOVE_NONE,
     rotate: ROTATE_NONE,
-    beamCount: 0,
     parent:null,
     label:null,
 
@@ -147,13 +146,21 @@ var Ship = cc.Class.extend({
     // callback
     removeBeam:function (nodeExecutingAction, data) {
         nodeExecutingAction.removeFromParent(data);
-	data.beamCount--;
     },
 
-    shootBeam: function(update) {
-	// console.log("shootbeam", this.beamCount)
-	if (this.beamCount >= MAX_BEAMCOUNT)
-	    return;
+    // player shoot
+    shootBeam: function(update, beamid) {
+	idx = null;
+	role = null;
+	if (update) {
+	    role = ME;
+	    idx = ME.getBeam();
+	    if (idx == null)
+		return;
+	} else {
+	    role = THEM[this.id];
+	    idx = beamid
+	}
 
 	_beam = cc.Sprite.create(s_beam1);
 	_beam.setPosition(this.sprite.getPositionX(),
@@ -170,11 +177,12 @@ var Ship = cc.Class.extend({
 	    cc.MoveBy.create(3.0, cc.p(x, y)),
 	    cc.CallFunc.create(this.removeBeam, _beam, this));
         _beam.runAction(action);
-	this.beamCount++;
+
+	role.shootBeam(idx, _beam);
 
 	// notify server
 	if (update)
-	    this.sendactupdate(1);
+	    this.sendShootBeam(idx);
     },
 
     sendmsupdate: function() {
@@ -192,6 +200,27 @@ var Ship = cc.Class.extend({
 	    }
 	}
 	var str = JSON.stringify(obj, undefined, 2);
+	miniConn.send(str);
+    },
+
+    sendShootBeam: function(idx) {
+	var obj = {
+	    cmd: 5,
+	    errcode: 0,
+	    seq: 0,
+	    userid: ME.name,
+	    body: {
+		x: this.sprite.getPositionX(),
+		y: this.sprite.getPositionY(),
+		angle: this.sprite.getRotation(),
+		move: this.move,
+		rotate: this.rotate,
+		act: 1,
+		beamid: idx
+	    }
+	}
+	var str = JSON.stringify(obj, undefined, 2);
+	// console.log("send", str);
 	miniConn.send(str);
     },
 
@@ -289,6 +318,8 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(3, this.procUserNotify, this);
 	miniConn.setCmdCallback(4, this.procKick, this);
 	miniConn.setCmdCallback(5, this.procAction, this);
+	miniConn.setCmdCallback(7, this.procStopBeam, this);
+	miniConn.setCmdCallback(8, this.procShootBeam, this);
 
 	this.createSelf(myShip.id);
     },
@@ -418,23 +449,48 @@ var GameLayer = cc.Layer.extend({
 	}
     },
 
-    // no use
-    procAction: function(target, obj) {
-	console.log("procAction");
-	target.procUserNotify(target, obj);
-	for (var i = 0; i < obj.body.users.length; i++) {
-	    s = obj.body.users[i];
-	    if (s.id == myShip.id) {
-		continue;
-	    }
+    procShootBeam: function(target, obj) {
+	console.log("procShootBeam");
+	s = obj.body.data;
 
-	    o = otherShips[s.id];
-	    o.shootBeam(false);
+	o = otherShips[s.id];
+	if (o == undefined || o == null) {
+	    otherShips[s.id] = new Ship();
+	    otherShips[s.id].setid(s.id);
+	    console.log("create other ship", s.id);
+	    myShip.parent.createOtherShip(s.id);
 	}
+	otherShips[s.id].setPos(s.x, s.y, s.angle);
+	otherShips[s.id].setMove(s.move, s.rotate);
+
+	o.shootBeam(false, s.beamid);
     },
 
     procKick: function(target, obj) {
 	target.removeOtherShip(obj.body.id);
+    },
+
+    procStopBeam: function(target, obj) {
+	if (obj.body.data == null)
+	    return;
+
+	id = obj.body.data.id;
+	beamid = obj.body.data.beamid;
+
+	console.log("stopbeam", obj.body.data)
+
+	if (id == ME.id) {
+	    ME.clearBeam(beamid, false);
+	    return;
+	}
+
+	console.log("stop others beam");
+	o = THEM[id];
+	if (o == undefined || o == null)
+	    return;
+
+	console.log("clear beam");
+	o.clearBeam(beamid, false);
     }
 });
 

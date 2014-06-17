@@ -84,10 +84,7 @@ func (s *Scene) delClient(e *Event) {
 	id := e.sender.Id
 	s.clientList.Remove(e.sender.pos)
 
-	reply := NewMsg()
-	reply.Cmd = kCmdUserKick
-	reply.Body["id"] = id
-	s.notifyAll(reply)
+	s.BroadProto(nil, true, kCmdUserKick, "id", &id)
 
 	s.setId(id)
 	if e.callback != nil {
@@ -130,6 +127,49 @@ type ProtoAddUser struct {
 	Name string `json:"name"`
 }
 
+type ProtoStopBeam struct {
+	Id int `json:"id"`
+	BeamId int `json:"beamid"`
+	Hit int `json:"hit"`
+}
+
+func (s *Scene) notifyProto(target *Client, cmd float64, field string, data interface{}) {
+	msg := NewMsg()
+	msg.Cmd = cmd
+	msg.Body[field] = data
+	target.Reply(msg)
+}
+
+func (s *Scene) BroadProto(sender *Client, exclusion bool, cmd float64, field string, data interface{}) {
+	var c *Client
+
+	msg := NewMsg()
+	msg.Cmd = cmd
+	msg.Body[field] = data
+
+	for p := s.clientList.Front(); p != nil; p = p.Next() {
+		c = p.Value.(*Client)
+		if !c.login {
+			continue
+		}
+		if c == sender && exclusion {
+			continue
+		}
+
+		c.Reply(msg)
+	}
+}
+
+func (s *Scene) broadStopBeam(c *Client, beamid int, hit int) {
+	data := &ProtoStopBeam{
+		Id: c.Id,
+		BeamId: beamid,
+		Hit: hit,
+	}
+
+	s.BroadProto(c, false, kCmdStopBeam, "data", data)
+}
+
 func (s *Scene) notifyAddUser(c *Client) {
 	var t *Client
 	var n []*ProtoAddUser
@@ -148,17 +188,10 @@ func (s *Scene) notifyAddUser(c *Client) {
 		n = append(n, data)
 	}
 
-	msg := NewMsg()
-	msg.Cmd = kCmdAddUser
-	msg.Body["users"] = n
-	fmt.Printf("notfiyAddUser %#v\n", msg)
-	c.Reply(msg)
+	s.notifyProto(c, kCmdAddUser, "users", n)
 }
 
 func (s *Scene) broadAddUser(c *Client) {
-	reply := NewMsg()
-	reply.Cmd = kCmdAddUser
-
 	var n []*ProtoAddUser
 	data := &ProtoAddUser{
 		Id: c.Id,
@@ -166,9 +199,7 @@ func (s *Scene) broadAddUser(c *Client) {
 	}
 	n = append(n, data)
 
-	reply.Body["users"] = n
-	fmt.Printf("broadAddUser %#v\n", reply)
-	s.notifyAll(reply)
+	s.BroadProto(c, true, kCmdAddUser, "users", n)
 }
 
 func (s *Scene) addClient(e *Event) {
@@ -203,13 +234,7 @@ func (s *Scene) addClient(e *Event) {
 	s.notifyAddUser(e.sender)
 }
 
-func (s *Scene) notifyAll(msg *Msg) {
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		p.Value.(*Client).Reply(msg)
-	}
-}
-
-func (s *Scene) updateAll() {
+func (s *Scene) broadShipStatus() {
 	if s.num == 0 {
 		return
 	}
@@ -217,44 +242,23 @@ func (s *Scene) updateAll() {
 	var c *Client
 	var n []*ShipStatus
 
-	clear := false
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
 		c = p.Value.(*Client)
 		if !c.login {
 			continue
 		}
 		n = append(n, &c.User.ShipStatus)
-		if c.Act != 0 {
-			clear = true
-		}
 	}
 
-	msg := NewMsg()
-	msg.Cmd = kCmdUserNotify
-	msg.Body["users"] = n
-
-	s.notifyAll(msg)
-
-	if !clear {
-		return
-	}
-
-	// clear action
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		c = p.Value.(*Client)
-		if !c.login {
-			continue
-		}
-		c.Act = 0
-	}
+	s.BroadProto(nil, false, kCmdShipStatus, "users", n)
 }
 
 func (s *Scene) procTimeout() {
 }
 
 func (s *Scene) runFrame(delta float64) {
-	// update status for all clients
-	s.updateAll()
+	// update ship status for all clients
+	s.broadShipStatus()
 
 	// update for each user
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
@@ -263,7 +267,7 @@ func (s *Scene) runFrame(delta float64) {
 
 	// check hit for each ship
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		p.Value.(*Client).CheckHitAll(s.clientList)
+		p.Value.(*Client).CheckHitAll(s.clientList, s)
 	}
 }
 

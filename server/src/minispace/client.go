@@ -229,6 +229,6 @@ func NewClient(conn *websocket.Conn) *Client {
 		login: false,
 		eventch: make(chan *Event, 128),
 	}
-	InitUser(&c.User)
+	InitUser(&c.User, c)
 	return c
 }

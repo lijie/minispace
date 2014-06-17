@@ -11,9 +11,14 @@ var User = cc.Class.extend({
     name: null,
     score: null,
     beams: null,
+    id: null,
 
     ctor: function() {
 	this.beams = new Array(5);
+    },
+
+    setid: function(id) {
+	this.id = id;
     },
 
     getBeam: function() {
@@ -30,13 +35,23 @@ var User = cc.Class.extend({
 	if (idx < 0 || idx > 5)
 	    return;
 
+	console.log("clearBeam");
 	if (this.beams[idx] == undefined ||
 	    this.beams[idx] == null)
 	    return;
 
+	console.log("clearBeam", idx, hit);
 	// stop beam action
+	this.beams[idx].stopAllActions();
+	this.beams[idx].removeFromParent(true);
+	this.beams[idx] = undefined;
 
 	// if hit, show affect
+    },
+
+    shootBeam: function(idx, beam) {
+	console.log("shootbeam", this.id, idx);
+	this.beams[idx] = beam;
     }
 });
 
@@ -78,6 +93,7 @@ var LoginLayer = cc.Layer.extend({
 	console.log("login callback", obj, obj.body);
 	if (obj.errcode == 0) {
 	    myShip.setid(obj.body.id);
+	    ME.setid(obj.body.id);
 	    // login ok, go to gamescene
             var director = cc.Director.getInstance();
 	    cc.LoaderScene.preload(g_resources, function () {
@@ -117,6 +133,11 @@ var LoginLayer = cc.Layer.extend({
 	console.log("adduser", obj);
 	console.log("adduser", obj.body);
 	console.log("adduser", obj.body.users);
+
+	if (obj.body.users == null ||
+	    obj.body.users == undefined)
+	    return;
+
 	for (var i = 0; i < obj.body.users.length; i++) {
 	    if (obj.body.users[i].id > 16)
 		continue;
@@ -129,6 +150,7 @@ var LoginLayer = cc.Layer.extend({
 	    }
 	    console.log("new user join", u.name);
 	    THEM[u.id].name = u.name;
+	    THEM[u.id].setid(u.id);
 	}
     }
 });
