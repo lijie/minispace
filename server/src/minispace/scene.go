@@ -6,7 +6,13 @@ import "fmt"
 import "container/list"
 
 type Scene struct {
+	// fix
 	clientList *list.List
+
+	// todo
+	// activeList *list.List
+	// deadlist *list.List
+
 	num int
 	cli_chan chan *Packet
 	cmd_chan chan *Event
@@ -234,6 +240,11 @@ func (s *Scene) addClient(e *Event) {
 	s.notifyAddUser(e.sender)
 }
 
+func (s *Scene) broadShipDead(id int) {
+	fmt.Printf("ship %d dead\n", id)
+	s.BroadProto(nil, false, kCmdShipDead, "data", &id)
+}
+
 func (s *Scene) broadShipStatus() {
 	if s.num == 0 {
 		return
@@ -245,6 +256,9 @@ func (s *Scene) broadShipStatus() {
 	for p := s.clientList.Front(); p != nil; p = p.Next() {
 		c = p.Value.(*Client)
 		if !c.login {
+			continue
+		}
+		if c.Hp == 0 {
 			continue
 		}
 		n = append(n, &c.User.ShipStatus)

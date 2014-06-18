@@ -45,6 +45,9 @@ var Ship = cc.Class.extend({
     parent:null,
     label:null,
     bloodbar: null,
+    deadcd:0,
+    dead:false,
+    emitter:null,
 
     ctor:function() {
     },
@@ -191,6 +194,9 @@ var Ship = cc.Class.extend({
     },
 
     sendmsupdate: function() {
+	if (this.dead)
+	    return;
+
 	var obj = {
 	    cmd: 2,
 	    errcode: 0,
@@ -247,6 +253,48 @@ var Ship = cc.Class.extend({
 	var str = JSON.stringify(obj, undefined, 2);
 	// console.log("send", str);
 	miniConn.send(str);
+    },
+
+    die: function(self) {
+	// stop notify server ship status
+	this.dead = true;
+
+	if (self) {
+	    // stop recv control msg from keyboard
+	    this.parent.setKeyboardEnabled(false);
+
+	    // set hp to zero
+	    this.bloodbar.setPercentage(0);
+	}
+
+	// set ship invisible
+	this.sprite.setVisible(false);
+
+	// play dead affect
+	this.emitter = cc.ParticleFire.create();
+        this.parent.addChild(this.emitter, 10);
+
+        this.emitter.setTexture(cc.TextureCache.getInstance().addImage(s_fire));//.pvr"];
+        if (this.emitter.setShapeType)
+            this.emitter.setShapeType(cc.PARTICLE_BALL_SHAPE);
+
+        var sourcePos = this.emitter.getSourcePosition();
+        if (sourcePos.x === 0 && sourcePos.y === 0)
+            this.emitter.setPosition(this.sprite.getPositionX(),
+				     this.sprite.getPositionY());
+
+	this.deadcd = 1.5;
+    },
+
+    procDeadCD: function(dt) {
+	// proc deadcd
+	if (this.deadcd > 0) {
+	    this.deadcd = this.deadcd - dt;
+	    if (this.deadcd < 0) {
+		this.deadcd = 0;
+		this.emitter.stopSystem();
+	    }	    
+	}
     }
 });
 
@@ -260,6 +308,7 @@ var GameLayer = cc.Layer.extend({
     helloImg:null,
     helloLabel:null,
     circle:null,
+    emitter:null,
 
     init:function () {
 
@@ -325,6 +374,7 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(5, this.procAction, this);
 	miniConn.setCmdCallback(7, this.procStopBeam, this);
 	miniConn.setCmdCallback(8, this.procShootBeam, this);
+	miniConn.setCmdCallback(9, this.procShipDead, this);
 
 	this.createSelf(myShip.id);
 
@@ -427,20 +477,19 @@ var GameLayer = cc.Layer.extend({
 
     update:function(dt) {
 	this.moveShips(dt);
+
+	myShip.procDeadCD(dt);
+	for (var i = 0; i < 16; i++) {
+	    o = otherShips[i];
+	    if (o == undefined || o == null)
+		continue;
+
+	    o.procDeadCD(dt);
+	}
     },
 
     timeCallback: function(dt) {
 	myShip.sendmsupdate();
-    },
-
-    // add other player in current scene
-    addplayer: function(player) {
-    },
-
-    shoot: function() {	
-    },
-
-    ishit: function() {
     },
 
     procUserNotify: function(target, obj) {
@@ -448,6 +497,9 @@ var GameLayer = cc.Layer.extend({
 	    s = obj.body.users[i];
 	    if (s.id == myShip.id) {
 		myShip.sethp(s.hp);
+		if (s.hp == 0) {
+		    console.log("hp is 0");
+		}
 		continue;
 	    }
 
@@ -510,6 +562,27 @@ var GameLayer = cc.Layer.extend({
 
 	console.log("clear beam");
 	o.clearBeam(beamid, false);
+    },
+
+    procShipDead: function(target, obj) {
+	if (obj.body.data == null)
+	    return;
+
+	id = obj.body.data;
+	console.log("shipdead", obj);
+	console.log("shipdead", obj.body);
+	console.log("shipdead", obj.body.data);
+
+	if (id == myShip.id) {
+	    myShip.die(true);
+	    return;
+	}
+
+	o = otherShips[id];
+	if (o == undefined || o == null)
+	    return;
+
+	o.die(false);
     }
 });
 

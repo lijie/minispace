@@ -25,7 +25,7 @@ type ShipStatus struct {
 	Rotate int `json:"rotate"`
 	// shoot
 	// Act int `json:"act"`
-	Hp int `json:"hp"`
+	Hp float64 `json:"hp"`
 	// ship id
 	Id int `json:"id"`
 }
@@ -137,11 +137,13 @@ func (u *User) CheckHit(target *User, s *Scene) {
 		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
 		s.broadStopBeam(u.conn, int(beam.id), 1)
 
-		target.Hp -= 10
+		target.Hp -= 20
 		if target.Hp < 0 {
 			// will broad to all client int next frame
-			// set 100 for test
-			target.Hp = 100
+			target.Hp = 0
+		}
+		if target.Hp == 0 {
+			s.broadShipDead(target.Id)
 		}
 		return
 	}
@@ -239,6 +241,8 @@ func procUserLogin(c *Client, msg *Msg) int {
 		return PROC_KICK
 	}
 
+	c.login = true
+
 	// ok, login succ, add to a scene
 	_, err = CurrentScene().AddClient(c)
 	if err != nil {
@@ -247,7 +251,6 @@ func procUserLogin(c *Client, msg *Msg) int {
 	}
 
 	// all done, send reply
-	c.login = true
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
 	reply.Body["id"] = c.Id

@@ -14,6 +14,7 @@ var s_beam2 = "beam-2x.png";
 var s_beam3 = "beam-3x.png";
 var s_bg = "background.png";
 var s_hp = "hp.png";
+var s_fire = "fire.png";
 
 var g_login = [
     s_HelloWorld,
@@ -39,6 +40,7 @@ var g_resources = [
     s_beam3,
     s_bg,
     s_hp,
+    s_fire,
 
     //plist
 

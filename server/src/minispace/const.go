@@ -12,6 +12,7 @@ const (
 	kCmdAddUser = 6
 	kCmdStopBeam = 7
 	kCmdShootBeam = 8
+	kCmdShipDead = 9
 )
 
 const (
