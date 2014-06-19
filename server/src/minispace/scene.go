@@ -3,16 +3,10 @@ package minispace
 import "sync"
 import "time"
 import "fmt"
-import "container/list"
 
 type Scene struct {
-	// fix
-	clientList *list.List
-
-	// todo
-	// activeList *list.List
-	// deadlist *list.List
-
+	activeList List
+	deadList List
 	num int
 	cli_chan chan *Packet
 	cmd_chan chan *Event
@@ -71,7 +65,7 @@ func (s *Scene) DelClient(c *Client) {
 	cmd := Event{
 		cmd: kEventDelClient,
 		sender: c,
-		callback: func(e *Event) {
+		callback: func(e *Event, err error) {
 			lock.Unlock()
 		},
 	}
@@ -83,18 +77,19 @@ func (s *Scene) DelClient(c *Client) {
 
 func (s *Scene) delClient(e *Event) {
 	if s.num == 0 {
-		e.callback(e)
+		e.callback(e, nil)
 		return
 	}
 
 	id := e.sender.Id
-	s.clientList.Remove(e.sender.pos)
+	// s.clientList.Remove(e.sender.pos)
+	e.sender.sceneList.RemoveSelf()
 
 	s.BroadProto(nil, true, kCmdUserKick, "id", &id)
 
 	s.setId(id)
 	if e.callback != nil {
-		e.callback(e)
+		e.callback(e, nil)
 	}
 
 	s.num--
@@ -108,7 +103,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	cmd := Event{
 		cmd: kEventAddClient,
 		sender: c,
-		callback: func(e *Event) {
+		callback: func(e *Event, err error) {
 			succ := e.data.(bool)
 			if !succ {
 				err = ErrSceneFull
@@ -153,8 +148,8 @@ func (s *Scene) BroadProto(sender *Client, exclusion bool, cmd float64, field st
 	msg.Cmd = cmd
 	msg.Body[field] = data
 
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		c = p.Value.(*Client)
+	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+		c = p.Host().(*Client)
 		if !c.login {
 			continue
 		}
@@ -179,8 +174,8 @@ func (s *Scene) broadStopBeam(c *Client, beamid int, hit int) {
 func (s *Scene) notifyAddUser(c *Client) {
 	var t *Client
 	var n []*ProtoAddUser
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		t = p.Value.(*Client)
+	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+		t = p.Host().(*Client)
 		if !t.login {
 			continue
 		}
@@ -213,7 +208,7 @@ func (s *Scene) addClient(e *Event) {
 
 	if s.num >= 16 {
 		e.data = false
-		e.callback(e)
+		e.callback(e, nil)
 		return
 	}
 
@@ -221,17 +216,21 @@ func (s *Scene) addClient(e *Event) {
 	id, err := s.getId()
 	if err != nil {
 		e.data = false
-		e.callback(e)
+		e.callback(e, nil)
 		return
 	}
 
 	fmt.Printf("alloc id %d for user %s\n", id, e.sender.Name)
 	// add ok
 	e.sender.Id = id
-	e.sender.pos = s.clientList.PushBack(e.sender)
+	// e.sender.pos = s.clientList.PushBack(e.sender)
+
+	// add to active list
+	s.activeList.PushBack(&e.sender.sceneList)
+
 	s.num++
 	e.data = true
-	e.callback(e)
+	e.callback(e, nil)
 
 	// tell all others I'm here
 	s.broadAddUser(e.sender)
@@ -253,8 +252,8 @@ func (s *Scene) broadShipStatus() {
 	var c *Client
 	var n []*ShipStatus
 
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		c = p.Value.(*Client)
+	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+		c = p.Host().(*Client)
 		if !c.login {
 			continue
 		}
@@ -275,13 +274,13 @@ func (s *Scene) runFrame(delta float64) {
 	s.broadShipStatus()
 
 	// update for each user
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		p.Value.(*Client).Update(delta, s)
+	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+		p.Host().(*Client).Update(delta, s)
 	}
 
 	// check hit for each ship
-	for p := s.clientList.Front(); p != nil; p = p.Next() {
-		p.Value.(*Client).CheckHitAll(s.clientList, s)
+	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+		p.Host().(*Client).CheckHitAll(&s.activeList, s)
 	}
 }
 
@@ -311,10 +310,12 @@ func (s *Scene) Run() {
 }
 
 func NewScene() *Scene {
-	return &Scene{
+	s := &Scene{
 		enable: true,
 		cli_chan: make(chan *Packet, 1024),
 		cmd_chan: make(chan *Event, 128),
-		clientList: list.New(),
 	}
+	InitList(&s.activeList, s)
+	InitList(&s.deadList, s)
+	return s
 }

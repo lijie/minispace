@@ -35,7 +35,7 @@ type Event struct {
 	cmd int
 	data interface{}
 	sender *Client
-	callback func(e *Event)
+	callback func(*Event, error)
 }
 
 func NewMsg() *Msg {
@@ -140,7 +140,7 @@ func (c *Client) KickClient(other *Client) {
 	var lock sync.Mutex
 	lock.Lock()
 
-	cmd.callback = func(cmd *Event) {
+	cmd.callback = func(cmd *Event, err error) {
 		lock.Unlock()
 	}
 
@@ -213,7 +213,7 @@ func (c *Client) Proc() {
 			c.Logout()
 
 			if cmd.callback != nil {
-				cmd.callback(cmd)
+				cmd.callback(cmd, nil)
 			}
 		}
 	}

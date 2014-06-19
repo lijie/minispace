@@ -2,12 +2,19 @@
 
 package minispace
 
+import "sync"
 import "labix.org/v2/mgo"
 import "labix.org/v2/mgo/bson"
 
 type SpaceDB struct {
 	session *mgo.Session
 	ip string
+	eventch chan *Event
+}
+
+type DBEventData struct {
+	key string
+	data interface{}
 }
 
 func (s *SpaceDB) Connect() error {
@@ -25,7 +32,65 @@ func (s *SpaceDB) Connect() error {
 	return nil
 }
 
-func (s *SpaceDB) Load(name string, data interface{}) error {
+func (s *SpaceDB) SyncLoad(name string, data interface{}) error {
+	return s.syncEvent(kEventDBLoad, name, data)
+}
+
+func (s *SpaceDB) SyncSave(name string, data interface{}) error {
+	return s.syncEvent(kEventDBSave, name, data)
+}
+
+func (s *SpaceDB) syncEvent(cmd int, name string, data interface{}) error {
+	dbe := &DBEventData{
+		key: name,
+		data: data,
+	}
+
+	var lock sync.Mutex
+	var dberr error
+
+	event := &Event{
+		cmd: cmd,
+		data: dbe,
+		callback: func(e *Event, err error) {
+			dberr = err
+			lock.Unlock()
+		},
+	}
+
+	lock.Lock()
+	s.AsyncEvent(event)
+
+	// wait
+	lock.Lock()
+
+	if dberr != nil {
+		return dberr
+	}
+	return nil
+}
+
+func (s *SpaceDB) AsyncEvent(e *Event) {
+	s.eventch <- e
+}
+
+func (s *SpaceDB) doAsyncLoad(e *Event) {
+	dbe := e.data.(*DBEventData)
+	err := s.load(dbe.key, dbe.data)
+	if e.callback != nil {
+		e.callback(e, err)
+	}
+}
+
+func (s *SpaceDB) doAsyncSave(e *Event) {
+	dbe := e.data.(*DBEventData)
+	err := s.save(dbe.key, dbe.data)
+	if e.callback != nil {
+		e.callback(e, err)
+	}
+}
+
+func (s *SpaceDB) load(name string, data interface{}) error {
 	c := s.session.DB("minispace").C("user")
 	err := c.Find(bson.M{"_id": name}).One(data)
 
@@ -40,7 +105,7 @@ func (s *SpaceDB) Load(name string, data interface{}) error {
 	return nil
 }
 
-func (s *SpaceDB) Save(name string, data interface{}) error {
+func (s *SpaceDB) save(name string, data interface{}) error {
 	c := s.session.DB("minispace").C("user")
 	_, err := c.Upsert(bson.M{"_id":name}, data)
 
@@ -56,6 +121,7 @@ var sharedSpaceDB *SpaceDB
 func NewSpaceDB(ip string) (*SpaceDB) {
 	db := &SpaceDB{
 		ip: ip,
+		eventch: make(chan *Event, 64),
 	}
 	return db
 }
@@ -70,5 +136,22 @@ func ConnectSharedDB(ip string) error {
 		return err
 	}
 	sharedSpaceDB = db
+	go db.dbFlushRoutine()
 	return nil
+}
+
+func (s *SpaceDB) dbFlushRoutine() {
+	var e *Event
+
+	for {
+		e =<- s.eventch
+		if e == nil {
+			continue
+		}
+		if e.cmd == kEventDBLoad {
+			s.doAsyncLoad(e)
+		} else if e.cmd == kEventDBSave {
+			s.doAsyncSave(e)
+		}
+	}
 }

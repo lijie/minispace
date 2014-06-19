@@ -12,6 +12,8 @@ type UserDb struct {
 	LoginTime int64
 	RegTime int64
 	BestScore int
+	Win int
+	Lose int
 }
 
 type ShipStatus struct {
@@ -89,6 +91,7 @@ type User struct {
 	beamMap int
 	beamList *list.List
 	conn *Client
+	sceneList List
 }
 
 func (u *User) MarkDirty() {
@@ -113,9 +116,9 @@ func (u *User) Update(delta float64, s *Scene) {
 	}
 }
 
-func (u *User) CheckHitAll(l *list.List, s *Scene) {
-	for p := l.Front(); p != nil; p = p.Next() {
-		u.CheckHit(&p.Value.(*Client).User, s)
+func (u *User) CheckHitAll(l *List, s *Scene) {
+	for p := l.Next(); p != l; p = l.Next() {
+		u.CheckHit(&p.Host().(*Client).User, s)
 	}
 }
 
@@ -139,11 +142,12 @@ func (u *User) CheckHit(target *User, s *Scene) {
 
 		target.Hp -= 20
 		if target.Hp < 0 {
-			// will broad to all client int next frame
 			target.Hp = 0
 		}
 		if target.Hp == 0 {
 			s.broadShipDead(target.Id)
+			u.Win++
+			target.Lose++
 		}
 		return
 	}
@@ -155,7 +159,7 @@ func (u *User) Logout() {
 	DeleteOnline(u.Name)
 
 	if u.dirty {
-		err := SharedDB().Save(u.Name, &u.UserDb)
+		err := SharedDB().SyncSave(u.Name, &u.UserDb)
 		if err != nil {
 			fmt.Printf("user %s, save db failed\n", u.Name)
 			return
@@ -200,7 +204,7 @@ func procUserLogin(c *Client, msg *Msg) int {
 	}
 
 	newbie := false
-	err := SharedDB().Load(msg.Userid, &c.User.UserDb)
+	err := SharedDB().SyncLoad(msg.Userid, &c.User.UserDb)
 	if err == ErrUserNotFound {
 		// new user
 		newbie = true
@@ -229,7 +233,7 @@ func procUserLogin(c *Client, msg *Msg) int {
 		fmt.Printf("create new user %#v\n", c.User.UserDb)
 
 		// flush to db
-		err = SharedDB().Save(msg.Userid, &c.User.UserDb)
+		err = SharedDB().SyncSave(msg.Userid, &c.User.UserDb)
 		if err != nil {
 			fmt.Printf("User %s save db failed\n", c.Name)
 			c.SetErrCode(ErrCodeDBError)
@@ -305,4 +309,5 @@ func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
 	u.conn = c
 	u.Hp = 100
+	InitList(&u.sceneList, &u)
 }

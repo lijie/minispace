@@ -24,6 +24,8 @@ const (
 	kEventAddClient = iota
 	kEventDelClient
 	kEventKickClient
+	kEventDBLoad
+	kEventDBSave
 )
 
 // screen size

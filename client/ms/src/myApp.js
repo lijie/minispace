@@ -18,20 +18,23 @@ ROTATE_RIGHT = 2
 
 MAX_BEAMCOUNT = 5
 
-// no use yet
-var Beam = cc.Class.extend({
-    sprite:null,
-    moveForward: function(dt) {
-	angle = this.sprite.getRotation();
-	if (angle < 0)
-	    angle = 360 + angle;
-	r = 160 * dt;
-	x = r * Math.sin(angle / 180 * Math.PI);
-	y = r * Math.cos(angle / 180 * Math.PI);
+SCREEN_WIDTH = 960
+SCREEN_HEIGHT = 640
 
-	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
-    },
-});
+// no use yet
+//var Beam = cc.Class.extend({
+//    sprite:null,
+//    moveForward: function(dt) {
+//	angle = this.sprite.getRotation();
+//	if (angle < 0)
+//	    angle = 360 + angle;
+//	r = 160 * dt;
+//	x = r * Math.sin(angle / 180 * Math.PI);
+//	y = r * Math.cos(angle / 180 * Math.PI);
+//
+//	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
+//    },
+//});
 
 // player ship
 var Ship = cc.Class.extend({
@@ -123,7 +126,20 @@ var Ship = cc.Class.extend({
 	x = r * Math.sin(angle / 180 * Math.PI);
 	y = r * Math.cos(angle / 180 * Math.PI);
 
-	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
+	x = this.sprite.getPositionX() + x
+	y = this.sprite.getPositionY() + y
+
+	if (x > SCREEN_WIDTH)
+	    x = SCREEN_WIDTH
+	else if (x < 0)
+	    x = 0
+
+	if (y > SCREEN_HEIGHT)
+	    y = SCREEN_HEIGHT
+	else if (y < 0)
+	    y = 0
+
+	this.sprite.setPosition(x, y);
     },
 
     moveBackward: function(dt) {
@@ -134,7 +150,20 @@ var Ship = cc.Class.extend({
 	x = r * Math.sin(angle / 180 * Math.PI);
 	y = r * Math.cos(angle / 180 * Math.PI);
 
-	this.sprite.setPosition(this.sprite.getPositionX() - x, this.sprite.getPositionY() - y);
+	x = this.sprite.getPositionX() - x
+	y = this.sprite.getPositionY() - y
+
+	if (x > SCREEN_WIDTH)
+	    x = SCREEN_WIDTH
+	else if (x < 0)
+	    x = 0
+
+	if (y > SCREEN_HEIGHT)
+	    y = SCREEN_HEIGHT
+	else if (y < 0)
+	    y = 0
+
+	this.sprite.setPosition(x, y);
     },
 
     moveLRotate: function(dt) {
