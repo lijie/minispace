@@ -209,7 +209,12 @@ func (u *User) CheckHit(target *User, s *Scene) {
 			s.broadShipDead(target.Id)
 			u.Win++
 			target.Lose++
+
 			// remove target from activeList
+			target.sceneList.RemoveSelf()
+
+			// add target to deadlist
+			s.deadList.PushBack(&target.sceneList)
 		}
 		return
 	}
