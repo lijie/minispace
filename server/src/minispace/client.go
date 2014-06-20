@@ -7,7 +7,6 @@ import _ "time"
 import "errors"
 import "fmt"
 import "sync"
-import "container/list"
 
 const (
 	PROC_OK = 0
@@ -57,10 +56,7 @@ type Client struct {
 	User
 	conn *websocket.Conn
 	enable bool
-	login bool
-	scene *Scene
 	lasterr int
-	pos *list.Element
 	eventch chan *Event
 }
 
@@ -226,9 +222,16 @@ func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
 		conn: conn,
 		enable: true,
-		login: false,
 		eventch: make(chan *Event, 128),
 	}
+	InitList(&c.sceneList, c)
 	InitUser(&c.User, c)
 	return c
+}
+
+func InitClient(c *Client, conn *websocket.Conn) {
+	c.conn = conn
+	c.enable = true
+	c.login = false
+	c.eventch = make(chan *Event, 128)
 }

@@ -113,7 +113,7 @@ func (s *Scene) AddClient(c *Client) (chan *Packet, error) {
 	}
 
 	s.cmd_chan <- &cmd
-//	fmt.Printf("wati add client\n")
+//	fmt.Printf("wait add client\n")
 	// wait
 	lock.Lock()
 

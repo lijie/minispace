@@ -87,11 +87,13 @@ type User struct {
 	UserDb
 	ShipStatus
 	ShipAttr
+	login bool
 	dirty bool
+	scene *Scene
+	sceneList List
 	beamMap int
 	beamList *list.List
 	conn *Client
-	sceneList List
 }
 
 func (u *User) MarkDirty() {
@@ -117,8 +119,13 @@ func (u *User) Update(delta float64, s *Scene) {
 }
 
 func (u *User) CheckHitAll(l *List, s *Scene) {
-	for p := l.Next(); p != l; p = l.Next() {
+	var tmp *List
+
+	p := l.Next()
+	for p != l {
+		tmp = p.Next()
 		u.CheckHit(&p.Host().(*Client).User, s)
+		p = tmp
 	}
 }
 
@@ -148,6 +155,7 @@ func (u *User) CheckHit(target *User, s *Scene) {
 			s.broadShipDead(target.Id)
 			u.Win++
 			target.Lose++
+			// remove target from activeList
 		}
 		return
 	}
@@ -309,5 +317,4 @@ func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
 	u.conn = c
 	u.Hp = 100
-	InitList(&u.sceneList, &u)
 }
