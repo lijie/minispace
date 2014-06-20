@@ -21,8 +21,8 @@ const (
 
 // internal event
 const (
-	kEventAddClient = iota
-	kEventDelClient
+	kEventAddPlayer = iota
+	kEventDelPlayer
 	kEventKickClient
 	kEventDBLoad
 	kEventDBSave

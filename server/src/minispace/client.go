@@ -6,7 +6,6 @@ import "code.google.com/p/go.net/websocket"
 import _ "time"
 import "errors"
 import "fmt"
-import "sync"
 
 const (
 	PROC_OK = 0
@@ -33,7 +32,7 @@ type Packet struct {
 type Event struct {
 	cmd int
 	data interface{}
-	sender *Client
+	sender *User
 	callback func(*Event, error)
 }
 
@@ -55,12 +54,9 @@ func NewPacket(c *Client) *Packet {
 type Client struct {
 	User
 	conn *websocket.Conn
-	enable bool
-	lasterr int
-	eventch chan *Event
 }
 
-type ClientProc func(*Client, *Msg) int
+type ClientProc func(*User, *Msg) int
 
 var procFuncArray [128]ClientProc
 // Register your client cmd proc function
@@ -92,10 +88,6 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 	}
 }
 
-func (c *Client) SetErrCode(code int) {
-	c.lasterr = code
-}
-
 func (c *Client) Reply(msg *Msg) {
 //	fmt.Printf("reply %v\n", msg)
 	websocket.JSON.Send(c.conn, msg)
@@ -105,7 +97,7 @@ func (c *Client) Reply(msg *Msg) {
 func (c *Client) ProcMsg(msg *Msg) int {
 	proc := procFuncArray[int(msg.Cmd)]
 	if proc != nil {
-		return proc(c, msg)
+		return proc(&c.User, msg)
 	}
 
 	// unknow cmd, kick client
@@ -118,33 +110,6 @@ func (c *Client) procTimeout() {
 
 func (c *Client) Kick() {
 	c.enable = false
-}
-
-func (c *Client) KickName(name string) {
-	other := SearchOnline(name)
-	if other != nil {
-		c.KickClient(other)
-	}
-}
-
-func (c *Client) KickClient(other *Client) {
-	cmd := &Event{
-		cmd: kEventKickClient,
-		sender: c,
-	}
-
-	var lock sync.Mutex
-	lock.Lock()
-
-	cmd.callback = func(cmd *Event, err error) {
-		lock.Unlock()
-	}
-
-	// send cmd
-	other.eventch <- cmd
-
-	// wait
-	lock.Lock()
 }
 
 func (c *Client) forwardRoutine() {
@@ -165,7 +130,7 @@ func (c *Client) forwardRoutine() {
 
 		// we have net or proto error
 		// kick self
-		c.KickClient(c)
+		c.KickPlayer(&c.User)
 		break
 	}
 }
@@ -195,24 +160,11 @@ func (c *Client) Proc() {
 
 	fmt.Printf("%s login ok\n", c.Name)
 
+	// proc player event message
+	go c.UserEventRoutine()
+
 	// wait msg and forward to scene
-	go c.forwardRoutine()
-
-	for c.enable {
-		// wait client cmd
-		cmd := <- c.eventch
-
-		// be kicked
-		if cmd.cmd == kEventKickClient {
-			CurrentScene().DelClient(c)
-			c.enable = false
-			c.Logout()
-
-			if cmd.callback != nil {
-				cmd.callback(cmd, nil)
-			}
-		}
-	}
+	c.forwardRoutine()
 
 	fmt.Printf("%s logout\n", c.Name)
 	return
@@ -221,17 +173,12 @@ func (c *Client) Proc() {
 func NewClient(conn *websocket.Conn) *Client {
 	c := &Client{
 		conn: conn,
-		enable: true,
-		eventch: make(chan *Event, 128),
 	}
-	InitList(&c.sceneList, c)
 	InitUser(&c.User, c)
 	return c
 }
 
 func InitClient(c *Client, conn *websocket.Conn) {
 	c.conn = conn
-	c.enable = true
-	c.login = false
 	c.eventch = make(chan *Event, 128)
 }

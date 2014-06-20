@@ -5,6 +5,7 @@ import "container/list"
 import "fmt"
 import "math"
 import "time"
+import "sync"
 
 type UserDb struct {
 	Name string `bson:"_id"`
@@ -87,13 +88,66 @@ type User struct {
 	UserDb
 	ShipStatus
 	ShipAttr
+	enable bool
 	login bool
 	dirty bool
 	scene *Scene
 	sceneList List
 	beamMap int
 	beamList *list.List
+	eventch chan *Event
+	lasterr int
 	conn *Client
+}
+
+func (u *User) UserEventRoutine() {
+	var event *Event
+
+	for u.enable {
+		event = <- u.eventch
+
+		// be kicked
+		if event.cmd == kEventKickClient {
+			// del current player from scene
+			u.scene.DelPlayer(u)
+			u.enable = false
+			u.Logout()
+			if event.callback != nil {
+				event.callback(event, nil)
+			}
+		}
+	}
+}
+
+func (u *User) KickName(name string) {
+	other := SearchOnline(name)
+	if other != nil {
+		u.KickPlayer(other)
+	}
+}
+
+func (u *User) KickPlayer(other *User) {
+	cmd := &Event{
+		cmd: kEventKickClient,
+		sender: u,
+	}
+
+	var lock sync.Mutex
+	lock.Lock()
+
+	cmd.callback = func(cmd *Event, err error) {
+		lock.Unlock()
+	}
+
+	// send cmd
+	other.eventch <- cmd
+
+	// wait
+	lock.Lock()
+}
+
+func (u *User) SetErrCode(code int) {
+	u.lasterr = code
 }
 
 func (u *User) MarkDirty() {
@@ -111,7 +165,7 @@ func (u *User) Update(delta float64, s *Scene) {
 		if !beam.Update(delta) {
 			u.beamList.Remove(b)
 			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-			s.broadStopBeam(u.conn, int(beam.id), 0)
+			s.broadStopBeam(u, int(beam.id), 0)
 		}
 
 		b = tmp
@@ -124,7 +178,7 @@ func (u *User) CheckHitAll(l *List, s *Scene) {
 	p := l.Next()
 	for p != l {
 		tmp = p.Next()
-		u.CheckHit(&p.Host().(*Client).User, s)
+		u.CheckHit(p.Host().(*User), s)
 		p = tmp
 	}
 }
@@ -145,7 +199,7 @@ func (u *User) CheckHit(target *User, s *Scene) {
 
 		u.beamList.Remove(b)
 		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-		s.broadStopBeam(u.conn, int(beam.id), 1)
+		s.broadStopBeam(u, int(beam.id), 1)
 
 		target.Hp -= 20
 		if target.Hp < 0 {
@@ -183,17 +237,17 @@ func init() {
 	ClientProcRegister(kCmdUserAction, procUserAction)
 }
 
-func procUserUpdate(c *Client, msg *Msg) int {
-	c.X = msg.Body["x"].(float64)
-	c.Y = msg.Body["y"].(float64)
-	c.Angle = msg.Body["angle"].(float64)
-	c.Move = int(msg.Body["move"].(float64))
-	c.Rotate = int(msg.Body["rotate"].(float64))
+func procUserUpdate(user *User, msg *Msg) int {
+	user.X = msg.Body["x"].(float64)
+	user.Y = msg.Body["y"].(float64)
+	user.Angle = msg.Body["angle"].(float64)
+	user.Move = int(msg.Body["move"].(float64))
+	user.Rotate = int(msg.Body["rotate"].(float64))
 	return PROC_OK
 }
 
-func procUserLogin(c *Client, msg *Msg) int {
-	if c.login {
+func procUserLogin(user *User, msg *Msg) int {
+	if user.login {
 		// repeat login request is error
 		return PROC_KICK
 	}
@@ -201,62 +255,62 @@ func procUserLogin(c *Client, msg *Msg) int {
 	// user already login? kick old
 	if o := SearchOnline(msg.Userid); o != nil {
 		fmt.Printf("kick %s for relogin\n", msg.Userid)
-		c.KickClient(o)
+		user.KickPlayer(o)
 	}
 
 	password, ok := msg.Body["password"]
 	if !ok || len(password.(string)) < 3 {
-		fmt.Printf("client %#v no password or passwoard too short, fail\n", c)
-		c.SetErrCode(ErrCodeInvalidProto)
+		fmt.Printf("client %#v no password or passwoard too short, fail\n", user)
+		user.SetErrCode(ErrCodeInvalidProto)
 		return PROC_ERR
 	}
 
 	newbie := false
-	err := SharedDB().SyncLoad(msg.Userid, &c.User.UserDb)
+	err := SharedDB().SyncLoad(msg.Userid, &user.UserDb)
 	if err == ErrUserNotFound {
 		// new user
 		newbie = true
 	} else if err != nil {
-		c.SetErrCode(ErrCodeDBError)
+		user.SetErrCode(ErrCodeDBError)
 		return PROC_ERR
 	}
 
 	now := time.Now()
 	if !newbie {
 		// check password
-		fmt.Printf("registed user %#v\n", c.User.UserDb)
-		c.User.UserDb.LoginTime = now.Unix()
-		c.MarkDirty()
+		fmt.Printf("registed user %#v\n", user.UserDb)
+		user.UserDb.LoginTime = now.Unix()
+		user.MarkDirty()
 
 		// TODO: use md5 at least...
-		if password.(string) != c.Pass {
-			fmt.Printf("user %s password error\n", c.Name)
+		if password.(string) != user.Pass {
+			fmt.Printf("user %s password error\n", user.Name)
 			return PROC_ERR
 		}
 	} else {
-		c.User.UserDb.Name = msg.Userid
-		c.User.UserDb.Pass = password.(string)
-		c.User.UserDb.RegTime = now.Unix()
-		c.User.UserDb.LoginTime = now.Unix()
-		fmt.Printf("create new user %#v\n", c.User.UserDb)
+		user.UserDb.Name = msg.Userid
+		user.UserDb.Pass = password.(string)
+		user.UserDb.RegTime = now.Unix()
+		user.UserDb.LoginTime = now.Unix()
+		fmt.Printf("create new user %#v\n", user.UserDb)
 
 		// flush to db
-		err = SharedDB().SyncSave(msg.Userid, &c.User.UserDb)
+		err = SharedDB().SyncSave(msg.Userid, &user.UserDb)
 		if err != nil {
-			fmt.Printf("User %s save db failed\n", c.Name)
-			c.SetErrCode(ErrCodeDBError)
+			fmt.Printf("User %s save db failed\n", user.Name)
+			user.SetErrCode(ErrCodeDBError)
 			return PROC_ERR
 		}
 	}
 
-	if InsertOnline(msg.Userid, c) != nil {
+	if InsertOnline(msg.Userid, user) != nil {
 		return PROC_KICK
 	}
 
-	c.login = true
+	user.login = true
 
 	// ok, login succ, add to a scene
-	_, err = CurrentScene().AddClient(c)
+	_, err = CurrentScene().AddPlayer(user)
 	if err != nil {
 		fmt.Printf("add client err")
 		return PROC_KICK
@@ -265,49 +319,44 @@ func procUserLogin(c *Client, msg *Msg) int {
 	// all done, send reply
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
-	reply.Body["id"] = c.Id
-	c.Reply(reply)
+	reply.Body["id"] = user.Id
+	user.conn.Reply(reply)
 
 	fmt.Printf("login result: %#v\n", reply)
 	return PROC_OK
 }
 
-type ProtoShootBeam struct {
-	ShipStatus
-	BeamId float64 `json:"beamid"`
-}
-
-func procUserAction(c *Client, msg *Msg) int {
-	c.X = msg.Body["x"].(float64)
-	c.Y = msg.Body["y"].(float64)
-	c.Angle = msg.Body["angle"].(float64)
-	c.Move = int(msg.Body["move"].(float64))
-	c.Rotate = int(msg.Body["rotate"].(float64))
+func procUserAction(user *User, msg *Msg) int {
+	user.X = msg.Body["x"].(float64)
+	user.Y = msg.Body["y"].(float64)
+	user.Angle = msg.Body["angle"].(float64)
+	user.Move = int(msg.Body["move"].(float64))
+	user.Rotate = int(msg.Body["rotate"].(float64))
 
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
 		beamid := msg.Body["beamid"].(float64)
 		// check beamid is valid
 		id := uint(beamid)
-		if ((1 << id) & c.beamMap) != 0 {
+		if ((1 << id) & user.beamMap) != 0 {
 			// error
 			fmt.Printf("beamid %d already used\n", id)
 			return PROC_ERR
 		}
 		// save beamid and beam
-		c.beamMap |= (1 << id)
+		user.beamMap |= (1 << id)
 		b := &Beam{
-			c.X, c.Y, c.Angle + 90,
-			(c.Angle + 90) * math.Pi / 180,
+			user.X, user.Y, user.Angle + 90,
+			(user.Angle + 90) * math.Pi / 180,
 			beamid, nil,
 		}
-		b.pos = c.beamList.PushBack(b)
+		b.pos = user.beamList.PushBack(b)
 		// broad to all players
 		data := &ProtoShootBeam{
 			BeamId: beamid, 
 		}
-		data.ShipStatus = c.User.ShipStatus
-		c.scene.BroadProto(c, true, kCmdShootBeam, "data", data)
+		data.ShipStatus = user.ShipStatus
+		user.scene.BroadProto(user, true, kCmdShootBeam, "data", data)
 	}
 
 	return PROC_OK
@@ -317,4 +366,6 @@ func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
 	u.conn = c
 	u.Hp = 100
+	u.eventch = make(chan *Event, 128)
+	InitList(&u.sceneList, u)
 }

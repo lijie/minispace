@@ -3,7 +3,7 @@ package minispace
 import "sync"
 
 type Online struct {
-	table map[string]*Client
+	table map[string]*User
 	lock sync.Mutex
 }
 
@@ -14,11 +14,11 @@ func init() {
 
 func NewOnline() *Online {
 	on := &Online{}
-	on.table = make(map[string]*Client)
+	on.table = make(map[string]*User)
 	return on
 }
 
-func (on *Online) Insert(name string, c *Client) error {
+func (on *Online) Insert(name string, c *User) error {
 	on.lock.Lock()
 	defer on.lock.Unlock()
 
@@ -31,7 +31,7 @@ func (on *Online) Insert(name string, c *Client) error {
 	return nil
 }
 
-func (on *Online) Search(name string) (c *Client) {
+func (on *Online) Search(name string) (c *User) {
 	on.lock.Lock()
 	defer on.lock.Unlock()
 
@@ -48,11 +48,11 @@ func (on *Online) Delete(name string) {
 	delete(on.table, name)
 }
 
-func InsertOnline(name string, c *Client) error {
+func InsertOnline(name string, c *User) error {
 	return onlineTable.Insert(name, c)
 }
 
-func SearchOnline(name string) *Client {
+func SearchOnline(name string) *User {
 	return onlineTable.Search(name)
 }
 
