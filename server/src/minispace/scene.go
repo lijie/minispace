@@ -4,6 +4,26 @@ import "sync"
 import "time"
 import "fmt"
 
+type Player interface {
+	SendClient(msg *Msg) error
+	SetUserId(id int)
+	SetScene(s *Scene)
+	UserId() int
+	UserName() string
+	SceneListNode() *List
+	Status() *ShipStatus
+	Update(delta float64)
+	CheckHitAll(*List)
+}
+
+// interal message
+type Event struct {
+	cmd int
+	data interface{}
+	sender Player
+	callback func(*Event, error)
+}
+
 type Scene struct {
 	activeList List
 	deadList List
@@ -24,7 +44,7 @@ func CurrentScene() *Scene {
 	return currentScene
 }
 
-func (s *Scene) setId(id int) {
+func (s *Scene) freeId(id int) {
 	if id > 16 {
 		return
 	}
@@ -32,7 +52,7 @@ func (s *Scene) setId(id int) {
 	s.idmap = s.idmap &^ (1 << uint(id - 1))
 }
 
-func (s *Scene) getId() (int, error) {
+func (s *Scene) allocId() (int, error) {
 	if s.num >= 16 {
 		return -1, ErrSceneFull
 	}
@@ -58,7 +78,7 @@ func (s *Scene) doSceneEvent(e *Event) {
 	}
 }
 
-func (s *Scene) DelPlayer(u *User) {
+func (s *Scene) DelPlayer(u Player) {
 	var lock sync.Mutex
 
 	lock.Lock()
@@ -81,13 +101,13 @@ func (s *Scene) delPlayer(e *Event) {
 		return
 	}
 
-	id := e.sender.Id
+	id := e.sender.UserId()
 	// s.clientList.Remove(e.sender.pos)
-	e.sender.sceneList.RemoveSelf()
+	e.sender.SceneListNode().RemoveSelf()
 
 	s.BroadProto(nil, true, kCmdUserKick, "id", &id)
 
-	s.setId(id)
+	s.freeId(id)
 	if e.callback != nil {
 		e.callback(e, nil)
 	}
@@ -95,7 +115,7 @@ func (s *Scene) delPlayer(e *Event) {
 	s.num--
 }
 
-func (s *Scene) AddPlayer(u *User) (chan *Packet, error) {
+func (s *Scene) AddPlayer(u Player) (chan *Packet, error) {
 	var lock sync.Mutex
 	var err error
 
@@ -123,36 +143,33 @@ func (s *Scene) AddPlayer(u *User) (chan *Packet, error) {
 	return s.cli_chan, nil
 }
 
-func (s *Scene) notifyProto(target *User, cmd float64, field string, data interface{}) {
+func (s *Scene) notifyProto(player Player, cmd float64, field string, data interface{}) {
 	msg := NewMsg()
 	msg.Cmd = cmd
 	msg.Body[field] = data
-	target.conn.Reply(msg)
+	player.SendClient(msg)
 }
 
-func (s *Scene) BroadProto(sender *User, exclusion bool, cmd float64, field string, data interface{}) {
-	var u *User
+func (s *Scene) BroadProto(sender Player, exclusion bool, cmd float64, field string, data interface{}) {
+	var u Player
 
 	msg := NewMsg()
 	msg.Cmd = cmd
 	msg.Body[field] = data
 
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		u = p.Host().(*User)
-		if !u.login {
-			continue
-		}
+		u = p.Host().(Player)
 		if u == sender && exclusion {
 			continue
 		}
 
-		u.conn.Reply(msg)
+		u.SendClient(msg)
 	}
 }
 
-func (s *Scene) broadStopBeam(u *User, beamid int, hit int) {
+func (s *Scene) broadStopBeam(u Player, beamid int, hit int) {
 	data := &ProtoStopBeam{
-		Id: u.Id,
+		Id: u.UserId(),
 		BeamId: beamid,
 		Hit: hit,
 	}
@@ -160,20 +177,17 @@ func (s *Scene) broadStopBeam(u *User, beamid int, hit int) {
 	s.BroadProto(u, false, kCmdStopBeam, "data", data)
 }
 
-func (s *Scene) notifyAddUser(u *User) {
-	var t *User
+func (s *Scene) notifyAddUser(u Player) {
+	var t Player
 	var n []*ProtoAddUser
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		t = p.Host().(*User)
-		if !t.login {
-			continue
-		}
+		t = p.Host().(Player)
 		if t == u {
 			continue
 		}
 		data := &ProtoAddUser{
-			Id: t.Id,
-			Name: t.Name,
+			Id: t.UserId(),
+			Name: t.UserName(),
 		}
 		n = append(n, data)
 	}
@@ -181,11 +195,11 @@ func (s *Scene) notifyAddUser(u *User) {
 	s.notifyProto(u, kCmdAddUser, "users", n)
 }
 
-func (s *Scene) broadAddUser(u *User) {
+func (s *Scene) broadAddUser(u Player) {
 	var n []*ProtoAddUser
 	data := &ProtoAddUser{
-		Id: u.Id,
-		Name: u.Name,
+		Id: u.UserId(),
+		Name: u.UserName(),
 	}
 	n = append(n, data)
 
@@ -193,7 +207,7 @@ func (s *Scene) broadAddUser(u *User) {
 }
 
 func (s *Scene) addPlayer(e *Event) {
-	e.sender.scene = s
+	e.sender.SetScene(s)
 
 	if s.num >= 16 {
 		e.data = false
@@ -202,20 +216,21 @@ func (s *Scene) addPlayer(e *Event) {
 	}
 
 	// each user have an unique id
-	id, err := s.getId()
+	id, err := s.allocId()
 	if err != nil {
 		e.data = false
 		e.callback(e, nil)
 		return
 	}
 
-	fmt.Printf("alloc id %d for user %s\n", id, e.sender.Name)
+	fmt.Printf("alloc id %d for user %s\n", id, e.sender.UserName())
 	// add ok
-	e.sender.Id = id
+	e.sender.SetUserId(id)
 	// e.sender.pos = s.clientList.PushBack(e.sender)
 
 	// add to active list
-	s.activeList.PushBack(&e.sender.sceneList)
+	l := e.sender.SceneListNode()
+	s.activeList.PushBack(l)
 
 	s.num++
 	e.data = true
@@ -238,18 +253,12 @@ func (s *Scene) broadShipStatus() {
 		return
 	}
 
-	var c *User
+	var c Player
 	var n []*ShipStatus
 
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		c = p.Host().(*User)
-		if !c.login {
-			continue
-		}
-		if c.Hp == 0 {
-			continue
-		}
-		n = append(n, &c.ShipStatus)
+		c = p.Host().(Player)
+		n = append(n, c.Status())
 	}
 
 	s.BroadProto(nil, false, kCmdShipStatus, "users", n)
@@ -264,12 +273,12 @@ func (s *Scene) runFrame(delta float64) {
 
 	// update for each user
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		p.Host().(*User).Update(delta, s)
+		p.Host().(Player).Update(delta)
 	}
 
 	// check hit for each ship
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		p.Host().(*User).CheckHitAll(&s.activeList, s)
+		p.Host().(Player).CheckHitAll(&s.activeList)
 	}
 }
 

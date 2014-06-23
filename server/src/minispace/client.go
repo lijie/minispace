@@ -28,14 +28,6 @@ type Packet struct {
 	client *Client
 }
 
-// interal message
-type Event struct {
-	cmd int
-	data interface{}
-	sender *User
-	callback func(*Event, error)
-}
-
 func NewMsg() *Msg {
 	msg := &Msg{
 		Body: make(map[string]interface{}),

@@ -109,7 +109,7 @@ func (u *User) UserEventRoutine() {
 
 		// be kicked
 		if event.cmd == kEventKickClient {
-			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.Name)
+			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
 			// del current player from scene
 			u.scene.DelPlayer(u)
 			u.enable = false
@@ -158,7 +158,7 @@ func (u *User) MarkDirty() {
 	u.dirty = true
 }
 
-func (u *User) Update(delta float64, s *Scene) {
+func (u *User) Update(delta float64) {
 	var tmp *list.Element
 	var beam *Beam
 
@@ -169,25 +169,25 @@ func (u *User) Update(delta float64, s *Scene) {
 		if !beam.Update(delta) {
 			u.beamList.Remove(b)
 			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-			s.broadStopBeam(u, int(beam.id), 0)
+			u.scene.broadStopBeam(u, int(beam.id), 0)
 		}
 
 		b = tmp
 	}
 }
 
-func (u *User) CheckHitAll(l *List, s *Scene) {
+func (u *User) CheckHitAll(l *List) {
 	var tmp *List
 
 	p := l.Next()
 	for p != l {
 		tmp = p.Next()
-		u.CheckHit(p.Host().(*User), s)
+		u.CheckHit(p.Host().(*User))
 		p = tmp
 	}
 }
 
-func (u *User) CheckHit(target *User, s *Scene) {
+func (u *User) CheckHit(target *User) {
 	if u == target {
 		return
 	}
@@ -203,14 +203,14 @@ func (u *User) CheckHit(target *User, s *Scene) {
 
 		u.beamList.Remove(b)
 		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-		s.broadStopBeam(u, int(beam.id), 1)
+		u.scene.broadStopBeam(u, int(beam.id), 1)
 
 		target.Hp -= 20
 		if target.Hp < 0 {
 			target.Hp = 0
 		}
 		if target.Hp == 0 {
-			s.broadShipDead(target.Id)
+			u.scene.broadShipDead(target.Id)
 			u.Win++
 			target.Lose++
 
@@ -218,7 +218,7 @@ func (u *User) CheckHit(target *User, s *Scene) {
 			target.sceneList.RemoveSelf()
 
 			// add target to deadlist
-			s.deadList.PushBack(&target.sceneList)
+			u.scene.deadList.PushBack(&target.sceneList)
 			target.status = kStatusDead
 		}
 		return
@@ -402,6 +402,37 @@ func procShipRestart(user *User, msg *Msg) int {
 	// broad to all clients
 	user.scene.BroadProto(user, true, kCmdShipRestart, "data", user.Id)
 	return PROC_OK
+}
+
+// for Player interface
+
+func (user *User) SendClient(msg *Msg) error {
+	user.conn.Reply(msg)
+	return nil
+}
+
+func (user *User) SetScene(s *Scene) {
+	user.scene = s
+}
+
+func (user *User) SetUserId(id int) {
+	user.Id = id
+}
+
+func (user *User) UserId() int {
+	return user.Id
+}
+
+func (user *User) UserName() string {
+	return user.Name
+}
+
+func (user *User) SceneListNode() *List {
+	return &user.sceneList
+}
+
+func (user *User) Status() *ShipStatus {
+	return &user.ShipStatus
 }
 
 func InitUser(u *User, c *Client) {
