@@ -218,6 +218,8 @@ var Ship = cc.Class.extend({
 	    idx = beamid
 	}
 
+	// TODO:
+	// create beam from BatchNode is better
 	_beam = cc.Sprite.create(s_beam1);
 	_beam.setPosition(this.sprite.getPositionX(),
 			  this.sprite.getPositionY());
@@ -364,6 +366,12 @@ var Ship = cc.Class.extend({
 	if (this.waitcd > 0) {
 	    this.waitcd = this.waitcd - dt;
 	    if (this.waitcd < 0) {
+		// remove emitter
+		// TODO:
+		// we should cache the emitter and reuse it
+		if (this.emitter != null) {
+		    this.emitter.removeFromParent(true);
+		}
 		this.waitcd = 0;
 		this.restart(this.id == myShip.id);
 		this.sendshiprestart();
