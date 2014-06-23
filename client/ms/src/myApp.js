@@ -49,10 +49,29 @@ var Ship = cc.Class.extend({
     label:null,
     bloodbar: null,
     deadcd:0,
+    waitcd:0,
     dead:false,
     emitter:null,
 
     ctor:function() {
+    },
+
+    restart:function(self) {
+	this.x = 480;
+	this.y = 320;
+	this.angle = 0;
+	this.move = MOVE_NONE;
+	this.rotate = ROTATE_NONE;
+	this.dead = false;
+
+	this.sprite.setPosition(this.x, this.y);
+	this.sprite.setRotation(0);
+
+	this.sprite.setVisible(true);
+	if (self) {
+	    this.bloodbar.setPercentage(100);
+	    this.parent.setKeyboardEnabled(true);
+	}
     },
 
     create: function(id, name, layer, x, y) {
@@ -284,6 +303,23 @@ var Ship = cc.Class.extend({
 	miniConn.send(str);
     },
 
+    sendshiprestart: function() {
+	var obj = {
+	    cmd: 10,
+	    errcode: 0,
+	    seq: 0,
+	    userid: ME.name,
+	    body: {
+		x: this.sprite.getPositionX(),
+		y: this.sprite.getPositionY(),
+		angle: this.sprite.getRotation(),
+	    }
+	}
+	var str = JSON.stringify(obj, undefined, 2);
+	// console.log("send", str);
+	miniConn.send(str);
+    },
+
     die: function(self) {
 	// stop notify server ship status
 	this.dead = true;
@@ -322,7 +358,16 @@ var Ship = cc.Class.extend({
 	    if (this.deadcd < 0) {
 		this.deadcd = 0;
 		this.emitter.stopSystem();
-	    }	    
+		this.waitcd = 5;
+	    }
+	}
+	if (this.waitcd > 0) {
+	    this.waitcd = this.waitcd - dt;
+	    if (this.waitcd < 0) {
+		this.waitcd = 0;
+		this.restart(this.id == myShip.id);
+		this.sendshiprestart();
+	    }
 	}
     }
 });
@@ -404,6 +449,7 @@ var GameLayer = cc.Layer.extend({
 	miniConn.setCmdCallback(7, this.procStopBeam, this);
 	miniConn.setCmdCallback(8, this.procShootBeam, this);
 	miniConn.setCmdCallback(9, this.procShipDead, this);
+	miniConn.setCmdCallback(10, this.procShipRestart, this);
 
 	this.createSelf(myShip.id);
 
@@ -522,6 +568,10 @@ var GameLayer = cc.Layer.extend({
     },
 
     procUserNotify: function(target, obj) {
+	if (obj.body.users == null) {
+	    console.log("usernotify", obj.body);
+	}
+
 	for (var i = 0; i < obj.body.users.length; i++) {
 	    s = obj.body.users[i];
 	    if (s.id == myShip.id) {
@@ -612,6 +662,23 @@ var GameLayer = cc.Layer.extend({
 	    return;
 
 	o.die(false);
+    },
+
+    procShipRestart: function(target, obj) {
+	if (obj.body.data == null)
+	    return;
+
+	id = obj.body.data;
+	console.log("shiprestart", id);
+	if (id == myShip.id) {
+	    return;
+	}
+
+	o = otherShips[id];
+	if (o == undefined || o == null)
+	    return;
+
+	o.restart(false);
     }
 });
 

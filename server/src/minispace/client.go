@@ -104,14 +104,6 @@ func (c *Client) ProcMsg(msg *Msg) int {
 	return PROC_KICK
 }
 
-func (c *Client) procTimeout() {
-	c.enable = false
-}
-
-func (c *Client) Kick() {
-	c.enable = false
-}
-
 func (c *Client) forwardRoutine() {
 	var p *Packet
 	var err error
@@ -127,6 +119,8 @@ func (c *Client) forwardRoutine() {
 			c.scene.cli_chan <- p
 			continue
 		}
+
+		fmt.Printf("readpacket err, close client\n")
 
 		// we have net or proto error
 		// kick self

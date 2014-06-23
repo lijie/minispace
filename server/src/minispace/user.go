@@ -97,6 +97,7 @@ type User struct {
 	beamList *list.List
 	eventch chan *Event
 	lasterr int
+	status int
 	conn *Client
 }
 
@@ -108,6 +109,7 @@ func (u *User) UserEventRoutine() {
 
 		// be kicked
 		if event.cmd == kEventKickClient {
+			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.Name)
 			// del current player from scene
 			u.scene.DelPlayer(u)
 			u.enable = false
@@ -117,6 +119,8 @@ func (u *User) UserEventRoutine() {
 			}
 		}
 	}
+
+	fmt.Printf("user %s end event loop\n", u.Name)
 }
 
 func (u *User) KickName(name string) {
@@ -215,6 +219,7 @@ func (u *User) CheckHit(target *User, s *Scene) {
 
 			// add target to deadlist
 			s.deadList.PushBack(&target.sceneList)
+			target.status = kStatusDead
 		}
 		return
 	}
@@ -240,6 +245,7 @@ func init() {
 	ClientProcRegister(kCmdUserUpdate, procUserUpdate)
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
 	ClientProcRegister(kCmdUserAction, procUserAction)
+	ClientProcRegister(kCmdShipRestart, procShipRestart)
 }
 
 func procUserUpdate(user *User, msg *Msg) int {
@@ -261,6 +267,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	if o := SearchOnline(msg.Userid); o != nil {
 		fmt.Printf("kick %s for relogin\n", msg.Userid)
 		user.KickPlayer(o)
+		fmt.Printf("kick done\n")
 	}
 
 	password, ok := msg.Body["password"]
@@ -271,6 +278,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	}
 
 	newbie := false
+	fmt.Printf("start load db\n")
 	err := SharedDB().SyncLoad(msg.Userid, &user.UserDb)
 	if err == ErrUserNotFound {
 		// new user
@@ -279,6 +287,7 @@ func procUserLogin(user *User, msg *Msg) int {
 		user.SetErrCode(ErrCodeDBError)
 		return PROC_ERR
 	}
+	fmt.Printf("load db done\n")
 
 	now := time.Now()
 	if !newbie {
@@ -367,8 +376,37 @@ func procUserAction(user *User, msg *Msg) int {
 	return PROC_OK
 }
 
+func procShipRestart(user *User, msg *Msg) int {
+	fmt.Printf("ship restart %s\n", user.Name)
+
+	if !user.enable || !user.login || user.status != kStatusDead {
+		return PROC_KICK
+	}
+
+	if user.scene == nil {
+		return PROC_ERR
+	}
+
+	// update status
+	user.X = msg.Body["x"].(float64)
+	user.Y = msg.Body["y"].(float64)
+	user.Angle = msg.Body["angle"].(float64)
+	user.Hp = 100
+
+	// remove self from deadlist
+	user.sceneList.RemoveSelf()
+
+	// add self to activelist
+	user.scene.activeList.PushBack(&user.sceneList)
+
+	// broad to all clients
+	user.scene.BroadProto(user, true, kCmdShipRestart, "data", user.Id)
+	return PROC_OK
+}
+
 func InitUser(u *User, c *Client) {
 	u.beamList = list.New()
+	u.enable = true
 	u.conn = c
 	u.Hp = 100
 	u.eventch = make(chan *Event, 128)

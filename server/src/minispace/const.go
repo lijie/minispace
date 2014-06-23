@@ -13,6 +13,7 @@ const (
 	kCmdStopBeam = 7
 	kCmdShootBeam = 8
 	kCmdShipDead = 9
+	kCmdShipRestart = 10
 )
 
 const (
@@ -21,11 +22,16 @@ const (
 
 // internal event
 const (
-	kEventAddPlayer = iota
-	kEventDelPlayer
-	kEventKickClient
-	kEventDBLoad
-	kEventDBSave
+	kEventAddPlayer = 1
+	kEventDelPlayer = 2
+	kEventKickClient = 3
+	kEventDBLoad = 4
+	kEventDBSave = 5
+)
+
+const (
+	kStatusActive = 0
+	kStatusDead = 1
 )
 
 // screen size
