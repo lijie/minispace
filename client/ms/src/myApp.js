@@ -374,7 +374,8 @@ var Ship = cc.Class.extend({
 		}
 		this.waitcd = 0;
 		this.restart(this.id == myShip.id);
-		this.sendshiprestart();
+		if (this.id == myShip.id)
+		    this.sendshiprestart();
 	    }
 	}
     }

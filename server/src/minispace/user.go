@@ -58,8 +58,8 @@ type Beam struct {
 	pos *list.Element
 }
 
-func (b *Beam) Hit(target *User) bool {
-	r := Rect{int(target.X - 25), int(target.Y) - 25, 50, 50}
+func (b *Beam) Hit(x int, y int) bool {
+	r := Rect{x - 25, y - 25, 50, 50}
 	if r.InRect(int(b.X), int(b.Y)) {
 		return true
 	}
@@ -87,7 +87,6 @@ func (b *Beam) Update(delta float64) bool {
 type User struct {
 	UserDb
 	ShipStatus
-	ShipAttr
 	enable bool
 	login bool
 	dirty bool
@@ -176,55 +175,61 @@ func (u *User) Update(delta float64) {
 	}
 }
 
-func (u *User) CheckHitAll(l *List) {
-	var tmp *List
+//func (u *User) CheckHitAll(l *List) {
+//	var tmp *List
+//
+//	p := l.Next()
+//	for p != l {
+//		tmp = p.Next()
+//		u.CheckHit(p.Host().(*User))
+//		p = tmp
+//	}
+//}
 
-	p := l.Next()
-	for p != l {
-		tmp = p.Next()
-		u.CheckHit(p.Host().(*User))
-		p = tmp
-	}
+func (u *User) Beat() {
+	u.Win++
 }
 
-func (u *User) CheckHit(target *User) {
+func (u *User) Die() {
+	u.status = kStatusDead
+	u.Lose++
+}
+
+func (u *User) HpDown(value int) int {
+	u.Hp -= float64(value)
+	if u.Hp < 0 {
+		u.Hp = 0
+	}
+	return int(u.Hp)
+}
+
+func (u *User) Position() (int, int) {
+	return int(u.X), int(u.Y)
+}
+
+func (u *User) CheckHit(target Player) bool {
 	if u == target {
-		return
+		return false
 	}
 
 	var beam *Beam
 	for b := u.beamList.Front(); b != nil; b = b.Next() {
 		beam = b.Value.(*Beam)
-		if !beam.Hit(target) {
+		if !beam.Hit(target.Position()) {
 			continue
 		}
 
-		fmt.Printf("%d hit target %d\n", u.Id, target.Id)
+		fmt.Printf("%d hit target %d\n", u.Id, target.UserId())
 
 		u.beamList.Remove(b)
 		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
 		u.scene.broadStopBeam(u, int(beam.id), 1)
 
-		target.Hp -= 20
-		if target.Hp < 0 {
-			target.Hp = 0
-		}
-		if target.Hp == 0 {
-			u.scene.broadShipDead(target.Id)
-			u.Win++
-			target.Lose++
-
-			// remove target from activeList
-			target.sceneList.RemoveSelf()
-
-			// add target to deadlist
-			u.scene.deadList.PushBack(&target.sceneList)
-			target.status = kStatusDead
-		}
-		return
+		// hit
+		return true
 	}
 
-	return
+	return false
 }
 
 func (u *User) Logout() {
@@ -322,6 +327,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	}
 
 	user.login = true
+	fmt.Printf("try add %s to scene\n", user.Name)
 
 	// ok, login succ, add to a scene
 	_, err = CurrentScene().AddPlayer(user)

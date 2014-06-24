@@ -13,7 +13,12 @@ type Player interface {
 	SceneListNode() *List
 	Status() *ShipStatus
 	Update(delta float64)
-	CheckHitAll(*List)
+	CheckHit(target Player) bool
+	HpDown(value int) int
+	Die()
+	Beat()
+
+	Position() (x int, y int)
 }
 
 // interal message
@@ -33,6 +38,7 @@ type Scene struct {
 	lock sync.Mutex
 	enable bool
 	idmap int
+	beamPool sync.Pool
 }
 
 var currentScene *Scene
@@ -206,6 +212,28 @@ func (s *Scene) broadAddUser(u Player) {
 	s.BroadProto(u, true, kCmdAddUser, "users", n)
 }
 
+func (s *Scene) addai(num int) {
+	var ai *AIUser
+	var id int
+	var err error
+	var l *List
+
+	for i := 0; i < num; i++ {
+		ai = NewAIUser()
+		id, err = s.allocId()
+		if err != nil {
+			break
+		}
+		ai.SetScene(s)
+		ai.SetUserId(id)
+		l = ai.SceneListNode()
+		s.activeList.PushBack(l)
+		s.num++
+		// tell all others I'm here
+		s.broadAddUser(ai)
+	}
+}
+
 func (s *Scene) addPlayer(e *Event) {
 	e.sender.SetScene(s)
 
@@ -241,6 +269,10 @@ func (s *Scene) addPlayer(e *Event) {
 
 	// show enemies
 	s.notifyAddUser(e.sender)
+
+//	if s.num < 8 {
+//		s.addai(8 - s.num)
+//	}
 }
 
 func (s *Scene) broadShipDead(id int) {
@@ -267,6 +299,42 @@ func (s *Scene) broadShipStatus() {
 func (s *Scene) procTimeout() {
 }
 
+func checkHit(shooter Player, target Player) {
+}
+
+func (s *Scene) checkHitAll(shooter Player, l *List) {
+	var tmp *List
+	var hit bool
+	var target Player
+	var node *List
+
+	p := l.Next()
+	for p != l {
+		tmp = p.Next()
+		target = p.Host().(Player)
+		p = tmp
+
+		hit = shooter.CheckHit(target)
+		if !hit {
+			continue
+		}
+
+		// hit
+		if target.HpDown(20) == 0 {
+			s.broadShipDead(target.UserId())
+			// remvoe target from active list
+			node = target.SceneListNode()
+			node.RemoveSelf()
+			// add target to dead list
+			s.deadList.PushBack(node)
+			// notify target is dead
+			target.Die()
+		}
+		// notify shooter
+		shooter.Beat()
+	}
+}
+
 func (s *Scene) runFrame(delta float64) {
 	// update ship status for all clients
 	s.broadShipStatus()
@@ -278,7 +346,7 @@ func (s *Scene) runFrame(delta float64) {
 
 	// check hit for each ship
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		p.Host().(Player).CheckHitAll(&s.activeList)
+		s.checkHitAll(p.Host().(Player), &s.activeList)
 	}
 }
 
