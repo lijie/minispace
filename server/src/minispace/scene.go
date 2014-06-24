@@ -218,17 +218,25 @@ func (s *Scene) addai(num int) {
 	var err error
 	var l *List
 
+	// test
+	if num > 0 {
+		num = 1
+	}
+
 	for i := 0; i < num; i++ {
 		ai = NewAIUser()
 		id, err = s.allocId()
 		if err != nil {
 			break
 		}
+
 		ai.SetScene(s)
 		ai.SetUserId(id)
 		l = ai.SceneListNode()
 		s.activeList.PushBack(l)
 		s.num++
+		fmt.Printf("add ai %d\n", id)
+
 		// tell all others I'm here
 		s.broadAddUser(ai)
 	}
@@ -270,9 +278,9 @@ func (s *Scene) addPlayer(e *Event) {
 	// show enemies
 	s.notifyAddUser(e.sender)
 
-//	if s.num < 8 {
-//		s.addai(8 - s.num)
-//	}
+	if s.num < 8 {
+		s.addai(8 - s.num)
+	}
 }
 
 func (s *Scene) broadShipDead(id int) {

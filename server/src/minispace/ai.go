@@ -56,14 +56,21 @@ func (ai *AIUser) SceneListNode() *List {
 }
 
 func (ai *AIUser) Status() *ShipStatus {
-	return nil
+	st := &ShipStatus {
+		X: float64(ai.x),
+		Y: float64(ai.y),
+		Angle: float64(ai.angle),
+		Hp: float64(ai.hp),
+		Id: ai.id,
+	}
+	return st
 }
 
 func (ai *AIUser) Update(delta float64) {
 }
 
 func (ai *AIUser) CheckHit(target Player) bool {
-	if ai == target.(*AIUser) {
+	if ai.id == target.UserId() {
 		return false
 	}
 
@@ -89,8 +96,11 @@ func (ai *AIUser) CheckHit(target Player) bool {
 
 func NewAIUser() *AIUser {
 	ai := &AIUser{
+		x: 480,
+		y: 320,
 		name: "AI",
 	}
+	ai.beamList = list.New()
 	InitList(&ai.sceneList, ai)
 	return ai
 }

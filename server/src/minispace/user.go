@@ -208,7 +208,7 @@ func (u *User) Position() (int, int) {
 }
 
 func (u *User) CheckHit(target Player) bool {
-	if u == target {
+	if u.Id == target.UserId() {
 		return false
 	}
 
