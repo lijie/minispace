@@ -1,11 +1,19 @@
 package minispace
 
 type aiSimpleAlgo struct {
+	shootDelta float64
 }
 
-func (algo *aiSimpleAlgo) Update(ai *AIUser) {
+func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
 	// just do right rotate
-	ai.rotate = 2
+	ai.ActRotate(2)
+	if algo.shootDelta >= 1000 {
+		// shoot if possible
+		ai.ActShoot()
+		algo.shootDelta = 0
+	} else {
+		algo.shootDelta += dt
+	}
 }
 
 func (algo *aiSimpleAlgo) Name() string {

@@ -4,23 +4,6 @@ import "sync"
 import "time"
 import "fmt"
 
-type Player interface {
-	SendClient(msg *Msg) error
-	SetUserId(id int)
-	SetScene(s *Scene)
-	UserId() int
-	UserName() string
-	SceneListNode() *List
-	Status() *ShipStatus
-	Update(delta float64)
-	CheckHit(target Player) bool
-	HpDown(value int) int
-	Die()
-	Beat()
-
-	Position() (x int, y int)
-}
-
 // interal message
 type Event struct {
 	cmd int
@@ -307,9 +290,6 @@ func (s *Scene) broadShipStatus() {
 func (s *Scene) procTimeout() {
 }
 
-func checkHit(shooter Player, target Player) {
-}
-
 func (s *Scene) checkHitAll(shooter Player, l *List) {
 	var tmp *List
 	var hit bool
@@ -322,7 +302,8 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 		target = p.Host().(Player)
 		p = tmp
 
-		hit = shooter.CheckHit(target)
+//		hit = shooter.CheckHit(target)
+		hit = ShipCheckHit(shooter, target)
 		if !hit {
 			continue
 		}

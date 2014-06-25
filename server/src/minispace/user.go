@@ -17,21 +17,21 @@ type UserDb struct {
 	Lose int
 }
 
-type ShipStatus struct {
-	// position
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Angle float64 `json:"angle"`
-	// forward or backward
-	Move int `json:"move"`
-	// left-rotate or right->rotate
-	Rotate int `json:"rotate"`
-	// shoot
-	// Act int `json:"act"`
-	Hp float64 `json:"hp"`
-	// ship id
-	Id int `json:"id"`
-}
+//type ShipStatus struct {
+//	// position
+//	X float64 `json:"x"`
+//	Y float64 `json:"y"`
+//	Angle float64 `json:"angle"`
+//	// forward or backward
+//	Move int `json:"move"`
+//	// left-rotate or right->rotate
+//	Rotate int `json:"rotate"`
+//	// shoot
+//	// Act int `json:"act"`
+//	Hp float64 `json:"hp"`
+//	// ship id
+//	Id int `json:"id"`
+//}
 
 type ShipAttr struct {
 	lv, speed, hp, beam int
@@ -54,7 +54,7 @@ func (r *Rect) InRect(x, y int) bool {
 type Beam struct {
 	X, Y, Angle float64
 	radian float64
-	id float64
+	id int
 	pos *list.Element
 }
 
@@ -86,14 +86,10 @@ func (b *Beam) Update(delta float64) bool {
 
 type User struct {
 	UserDb
-	ShipStatus
+	Ship
 	enable bool
 	login bool
 	dirty bool
-	scene *Scene
-	sceneList List
-	beamMap int
-	beamList *list.List
 	eventch chan *Event
 	lasterr int
 	status int
@@ -158,33 +154,27 @@ func (u *User) MarkDirty() {
 }
 
 func (u *User) Update(delta float64) {
-	var tmp *list.Element
-	var beam *Beam
-
-	for b := u.beamList.Front(); b != nil; {
-		beam = b.Value.(*Beam)
-		tmp = b.Next()
-
-		if !beam.Update(delta) {
-			u.beamList.Remove(b)
-			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-			u.scene.broadStopBeam(u, int(beam.id), 0)
-		}
-
-		b = tmp
-	}
+//	var tmp *list.Element
+//	var beam *Beam
+//
+//	for b := u.beamList.Front(); b != nil; {
+//		beam = b.Value.(*Beam)
+//		tmp = b.Next()
+//
+//		if !beam.Update(delta) {
+//			u.beamList.Remove(b)
+//			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
+//			u.scene.broadStopBeam(u, int(beam.id), 0)
+//		}
+//
+//		b = tmp
+//	}
+	ShipUpdateBeam(u, delta)
 }
 
-//func (u *User) CheckHitAll(l *List) {
-//	var tmp *List
-//
-//	p := l.Next()
-//	for p != l {
-//		tmp = p.Next()
-//		u.CheckHit(p.Host().(*User))
-//		p = tmp
-//	}
-//}
+func (u *User) GetShip() *Ship {
+	return &u.Ship
+}
 
 func (u *User) Beat() {
 	u.Win++
@@ -193,43 +183,6 @@ func (u *User) Beat() {
 func (u *User) Die() {
 	u.status = kStatusDead
 	u.Lose++
-}
-
-func (u *User) HpDown(value int) int {
-	u.Hp -= float64(value)
-	if u.Hp < 0 {
-		u.Hp = 0
-	}
-	return int(u.Hp)
-}
-
-func (u *User) Position() (int, int) {
-	return int(u.X), int(u.Y)
-}
-
-func (u *User) CheckHit(target Player) bool {
-	if u.Id == target.UserId() {
-		return false
-	}
-
-	var beam *Beam
-	for b := u.beamList.Front(); b != nil; b = b.Next() {
-		beam = b.Value.(*Beam)
-		if !beam.Hit(target.Position()) {
-			continue
-		}
-
-		fmt.Printf("%d hit target %d\n", u.Id, target.UserId())
-
-		u.beamList.Remove(b)
-		u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-		u.scene.broadStopBeam(u, int(beam.id), 1)
-
-		// hit
-		return true
-	}
-
-	return false
 }
 
 func (u *User) Logout() {
@@ -355,28 +308,11 @@ func procUserAction(user *User, msg *Msg) int {
 
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
-		beamid := msg.Body["beamid"].(float64)
-		// check beamid is valid
-		id := uint(beamid)
-		if ((1 << id) & user.beamMap) != 0 {
-			// error
-			fmt.Printf("beamid %d already used\n", id)
+		beamid := int(msg.Body["beamid"].(float64))
+		err := ShipAddBeam(user, beamid)
+		if err != nil {
 			return PROC_ERR
 		}
-		// save beamid and beam
-		user.beamMap |= (1 << id)
-		b := &Beam{
-			user.X, user.Y, user.Angle + 90,
-			(user.Angle + 90) * math.Pi / 180,
-			beamid, nil,
-		}
-		b.pos = user.beamList.PushBack(b)
-		// broad to all players
-		data := &ProtoShootBeam{
-			BeamId: beamid, 
-		}
-		data.ShipStatus = user.ShipStatus
-		user.scene.BroadProto(user, true, kCmdShootBeam, "data", data)
 	}
 
 	return PROC_OK
@@ -417,28 +353,8 @@ func (user *User) SendClient(msg *Msg) error {
 	return nil
 }
 
-func (user *User) SetScene(s *Scene) {
-	user.scene = s
-}
-
-func (user *User) SetUserId(id int) {
-	user.Id = id
-}
-
-func (user *User) UserId() int {
-	return user.Id
-}
-
 func (user *User) UserName() string {
 	return user.Name
-}
-
-func (user *User) SceneListNode() *List {
-	return &user.sceneList
-}
-
-func (user *User) Status() *ShipStatus {
-	return &user.ShipStatus
 }
 
 func InitUser(u *User, c *Client) {

@@ -49,6 +49,7 @@ var ErrFifoIsEmpty = errors.New("Fifo is empty")
 var ErrFifoInvalidSize = errors.New("Invalid fifo size")
 var ErrUserNotFound = errors.New("User not found")
 var ErrUserAlreadyLogin = errors.New("User already login")
+var ErrInvalidBeamID = errors.New("Invalid beam id")
 
 // error code
 const (

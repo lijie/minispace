@@ -13,6 +13,6 @@ type ProtoStopBeam struct {
 
 type ProtoShootBeam struct {
 	ShipStatus
-	BeamId float64 `json:"beamid"`
+	BeamId int `json:"beamid"`
 }
 
