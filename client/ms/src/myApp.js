@@ -373,9 +373,11 @@ var Ship = cc.Class.extend({
 		    this.emitter.removeFromParent(true);
 		}
 		this.waitcd = 0;
-		this.restart(this.id == myShip.id);
 		if (this.id == myShip.id)
 		    this.sendshiprestart();
+		// TODO:
+		// restart() should after server reply
+		this.restart(this.id == myShip.id);
 	    }
 	}
     }
