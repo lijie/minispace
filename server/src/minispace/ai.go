@@ -17,7 +17,6 @@ type AIAlgo interface {
 type AIUser struct {
 	Ship
 	name string
-	act int
 	enable bool
 	algo AIAlgo
 	shipmap map[int]ShipStatus
@@ -45,55 +44,64 @@ func (ai *AIUser) Die() {
 func (ai *AIUser) Beat() {
 }
 
-func (ai *AIUser) updatePosition(delta float64) {
-	if ai.Rotate == 2 {
-		angle := ai.Angle + 80 * (delta / 1000);
-		if angle >= 360 {
-			angle = angle - 360;
-		}
-		ai.Angle = angle
-	}
+func (ai *AIUser) doMove(dt float64) {
+	angle := ai.Angle + 90
+	// move
+	r := 80 * (dt / 1000);
+	x := r * math.Sin(angle * math.Pi / 180);
+	y := r * math.Cos(angle * math.Pi / 180);
 
+	// forward
 	if ai.Move == 1 {
-		angle := ai.Angle + 90
-		// move
-		r := 80 * (delta / 1000);
-		x := r * math.Sin(angle * math.Pi / 180);
-		y := r * math.Cos(angle * math.Pi / 180);
-
 		x = ai.X + x
 		y = ai.Y + y
-
-		if x > kScreenWidth {
-			x = kScreenWidth
-		} else if x < 0 {
-			x = 0
-		}
-
-		if y > kScreenHeight {
-			y = kScreenHeight
-		} else if y < 0 {
-			y = 0
-		}
-
-		ai.X = x
-		ai.Y = y
+	} else {
+		// backward
+		x = ai.X - x
+		y = ai.Y - y
 	}
+
+	if x > kScreenWidth {
+		x = kScreenWidth
+	} else if x < 0 {
+		x = 0
+	}
+
+	if y > kScreenHeight {
+		y = kScreenHeight
+	} else if y < 0 {
+		y = 0
+	}
+
+	ai.X = x
+	ai.Y = y
 }
 
-func (ai *AIUser) updateAction(delta float64) {
-	if ai.act == 1 {
-		// shoot
+func (ai *AIUser) doRotate(dt float64) {
+	var angle float64
+
+	if ai.Rotate == 2 {
+		angle = ai.Angle + 80 * (dt / 1000);
+	} else {
+		angle = ai.Angle - 80 * (dt / 1000);
+	}
+	if angle >= 360 {
+		angle = angle - 360
+	}
+	if angle < 0 {
+		angle = angle + 360
 	}
 
-	// clear
-	ai.act = 0
+	ai.Angle = angle
+}
+
+func (ai *AIUser) updatePosition(delta float64) {
+	ai.doRotate(delta)
+	ai.doMove(delta)
 }
 
 func (ai *AIUser) Update(delta float64) {
 	ai.algo.Update(ai, delta)
-
-	ai.updateAction(delta)
 	ShipUpdateBeam(ai, delta)
 	ai.updatePosition(delta)
 }

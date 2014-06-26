@@ -35,12 +35,12 @@ var User = cc.Class.extend({
 	if (idx < 0 || idx > 5)
 	    return;
 
-	console.log("clearBeam");
+	// console.log("clearBeam");
 	if (this.beams[idx] == undefined ||
 	    this.beams[idx] == null)
 	    return;
 
-	console.log("clearBeam", idx, hit);
+	// console.log("clearBeam", idx, hit);
 	// stop beam action
 	this.beams[idx].stopAllActions();
 	this.beams[idx].removeFromParent(true);
@@ -50,7 +50,7 @@ var User = cc.Class.extend({
     },
 
     shootBeam: function(idx, beam) {
-	console.log("shootbeam", this.id, idx);
+	// console.log("shootbeam", this.id, idx);
 	this.beams[idx] = beam;
     }
 });

@@ -203,11 +203,6 @@ func (s *Scene) addai(num int) {
 	var err error
 	var l *List
 
-	// test
-	if num > 0 {
-		num = 1
-	}
-
 	for i := 0; i < num; i++ {
 		ai = NewAIUser()
 		id, err = s.allocId()

@@ -611,7 +611,7 @@ var GameLayer = cc.Layer.extend({
     },
 
     procShootBeam: function(target, obj) {
-	console.log("procShootBeam");
+	// console.log("procShootBeam");
 	s = obj.body.data;
 
 	o = otherShips[s.id];
@@ -638,19 +638,19 @@ var GameLayer = cc.Layer.extend({
 	id = obj.body.data.id;
 	beamid = obj.body.data.beamid;
 
-	console.log("stopbeam", obj.body.data)
+	// console.log("stopbeam", obj.body.data)
 
 	if (id == ME.id) {
 	    ME.clearBeam(beamid, false);
 	    return;
 	}
 
-	console.log("stop others beam");
+	// console.log("stop others beam");
 	o = THEM[id];
 	if (o == undefined || o == null)
 	    return;
 
-	console.log("clear beam");
+	// console.log("clear beam");
 	o.clearBeam(beamid, false);
     },
 
