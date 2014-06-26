@@ -28,19 +28,6 @@ func (ai *AIUser) UserName() string {
 	return ai.name
 }
 
-func (ai *AIUser) Die() {
-	s := ai.scene
-
-	// recover...
-	ai.Hp = 100
-
-	// remove self from dead list
-	ai.sceneList.RemoveSelf()
-
-	// push back to active list
-	s.activeList.PushBack(&ai.sceneList)
-}
-
 func (ai *AIUser) Beat() {
 }
 
@@ -101,9 +88,11 @@ func (ai *AIUser) updatePosition(delta float64) {
 }
 
 func (ai *AIUser) Update(delta float64) {
-	ai.algo.Update(ai, delta)
-	ShipUpdateBeam(ai, delta)
-	ai.updatePosition(delta)
+	if ai.status == kStatusActive {
+		ai.algo.Update(ai, delta)
+		ShipUpdateBeam(ai, delta)
+		ai.updatePosition(delta)
+	}
 }
 
 func (ai *AIUser) GetShip() *Ship {

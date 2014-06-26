@@ -12,6 +12,8 @@ type aiSimpleAlgo struct {
 func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
 	// always keep moving
 	ai.ActMove(1)
+	algo.rotateDelta += dt
+	algo.shootDelta += dt
 
 	if algo.rotateDelta >= 1000 {
 		var value uint64
@@ -26,16 +28,12 @@ func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
 			ai.ActRotate(0)
 		}
 		algo.rotateDelta = 0
-	} else {
-		algo.rotateDelta += dt
 	}
 
 	if algo.shootDelta >= 1000 {
 		// shoot if possible
 		ai.ActShoot()
 		algo.shootDelta = 0
-	} else {
-		algo.shootDelta += dt
 	}
 }
 

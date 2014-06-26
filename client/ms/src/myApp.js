@@ -75,7 +75,7 @@ var Ship = cc.Class.extend({
     },
 
     create: function(id, name, layer, x, y) {
-	this.sprite = cc.Sprite.create("ship-" + (id + 1) + ".png");
+	this.sprite = cc.Sprite.create("ship-" + id + ".png");
         this.sprite.setAnchorPoint(0.5, 0.5);
         this.sprite.setPosition(x, y);
 	this.sprite.setScale(0.5);
@@ -360,7 +360,7 @@ var Ship = cc.Class.extend({
 	    if (this.deadcd < 0) {
 		this.deadcd = 0;
 		this.emitter.stopSystem();
-		this.waitcd = 5;
+		this.waitcd = 3;
 	    }
 	}
 	if (this.waitcd > 0) {
@@ -373,11 +373,12 @@ var Ship = cc.Class.extend({
 		    this.emitter.removeFromParent(true);
 		}
 		this.waitcd = 0;
-		if (this.id == myShip.id)
-		    this.sendshiprestart();
+
+//		if (this.id == myShip.id)
+//		    this.sendshiprestart();
+
 		// TODO:
 		// restart() should after server reply
-		this.restart(this.id == myShip.id);
 	    }
 	}
     }
@@ -625,6 +626,9 @@ var GameLayer = cc.Layer.extend({
 	otherShips[s.id].setMove(s.move, s.rotate);
 
 	o.shootBeam(false, s.beamid);
+	if (o.dead == true) {
+	    console.log("ship", s.id, "shoot, but dead");
+	}
     },
 
     procKick: function(target, obj) {
@@ -659,8 +663,6 @@ var GameLayer = cc.Layer.extend({
 	    return;
 
 	id = obj.body.data;
-	console.log("shipdead", obj);
-	console.log("shipdead", obj.body);
 	console.log("shipdead", obj.body.data);
 
 	if (id == myShip.id) {
@@ -682,6 +684,7 @@ var GameLayer = cc.Layer.extend({
 	id = obj.body.data;
 	console.log("shiprestart", id);
 	if (id == myShip.id) {
+	    myShip.restart(true);
 	    return;
 	}
 

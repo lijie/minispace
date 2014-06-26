@@ -92,7 +92,6 @@ type User struct {
 	dirty bool
 	eventch chan *Event
 	lasterr int
-	status int
 	conn *Client
 }
 
@@ -183,8 +182,8 @@ func (u *User) Beat() {
 	u.Win++
 }
 
-func (u *User) Die() {
-	u.status = kStatusDead
+func (u *User) SetDead() {
+	u.Ship.SetDead()
 	u.Lose++
 }
 
@@ -206,7 +205,7 @@ func init() {
 	ClientProcRegister(kCmdUserUpdate, procUserUpdate)
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
 	ClientProcRegister(kCmdUserAction, procUserAction)
-	ClientProcRegister(kCmdShipRestart, procShipRestart)
+//	ClientProcRegister(kCmdShipRestart, procShipRestart)
 }
 
 func procUserUpdate(user *User, msg *Msg) int {

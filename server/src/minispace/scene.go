@@ -308,17 +308,33 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 
 		// hit
 		if target.HpDown(20) == 0 {
-			s.broadShipDead(target.UserId())
 			// remvoe target from active list
 			node = target.SceneListNode()
 			node.RemoveSelf()
 			// add target to dead list
 			s.deadList.PushBack(node)
 			// notify target is dead
-			target.Die()
+			target.SetDead()
+			s.broadShipDead(target.UserId())
 		}
 		// notify shooter
 		shooter.Beat()
+	}
+}
+
+func (s *Scene) checkDead(p Player, delta float64) {
+	ship := p.GetShip()
+	ship.deadCD += delta
+
+	if ship.deadCD > 5000 {
+		// restart
+		ship.deadCD = 0
+		ship.Hp = 100
+		ship.sceneList.RemoveSelf()
+		s.activeList.PushBack(&ship.sceneList)
+		p.SetActive()
+		ship.scene.BroadProto(p, false, kCmdShipRestart, "data", p.UserId())
+		fmt.Printf("ship %d restart\n", p.UserId())
 	}
 }
 
@@ -334,6 +350,18 @@ func (s *Scene) runFrame(delta float64) {
 	// check hit for each ship
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
 		s.checkHitAll(p.Host().(Player), &s.activeList)
+	}
+
+	// update dead list
+	var tmp *List
+	var target Player
+	p := s.deadList.Next()
+	for p != &s.deadList {
+		tmp = p.Next()
+		target = p.Host().(Player)
+		p = tmp
+
+		s.checkDead(target, delta)
 	}
 }
 
