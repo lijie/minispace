@@ -1,8 +1,11 @@
 package minispace
 
+import _ "fmt"
+import "math"
+
 type AIAction interface {
 	ActShoot() error
-//	ActMove(int)
+	ActMove(int)
 	ActRotate(int)
 }
 
@@ -15,7 +18,11 @@ type AIUser struct {
 	Ship
 	name string
 	act int
+	enable bool
 	algo AIAlgo
+	shipmap map[int]ShipStatus
+	msgch chan *Msg
+	eventch chan *Event
 }
 
 func (ai *AIUser) UserName() string {
@@ -46,6 +53,32 @@ func (ai *AIUser) updatePosition(delta float64) {
 		}
 		ai.Angle = angle
 	}
+
+	if ai.Move == 1 {
+		angle := ai.Angle + 90
+		// move
+		r := 80 * (delta / 1000);
+		x := r * math.Sin(angle * math.Pi / 180);
+		y := r * math.Cos(angle * math.Pi / 180);
+
+		x = ai.X + x
+		y = ai.Y + y
+
+		if x > kScreenWidth {
+			x = kScreenWidth
+		} else if x < 0 {
+			x = 0
+		}
+
+		if y > kScreenHeight {
+			y = kScreenHeight
+		} else if y < 0 {
+			y = 0
+		}
+
+		ai.X = x
+		ai.Y = y
+	}
 }
 
 func (ai *AIUser) updateAction(delta float64) {
@@ -70,12 +103,17 @@ func (ai *AIUser) GetShip() *Ship {
 }
 
 func (ai *AIUser) SendClient(msg *Msg) error {
+	ai.msgch <- msg
 	return nil
 }
 
 // for AIAction
 func (ai *AIUser) ActRotate(dir int) {
 	ai.Rotate = dir
+}
+
+func (ai *AIUser) ActMove(dir int) {
+	ai.Move = dir
 }
 
 func (ai *AIUser) ActShoot() error {
@@ -95,9 +133,54 @@ func (ai *AIUser) ActShoot() error {
 	return nil
 }
 
+func (ai *AIUser) procShipStatus(msg *Msg) {
+	users, ok := msg.Body["users"].([]*ShipStatus)
+	if !ok {
+		return
+	}
+
+	if len(users) == 0 {
+		return
+	}
+
+	for i := range users {
+		// copy ship status
+		ai.shipmap[users[i].Id] = *users[i]
+	}
+}
+
+func (ai *AIUser) procMsg(msg *Msg) {
+	if msg.Cmd == kCmdShipStatus {
+		ai.procShipStatus(msg)
+	}
+}
+
+func (ai *AIUser) procEvent(event *Event) {
+	
+}
+
+func (ai *AIUser) aiEventRoutine() {
+	var msg *Msg
+	var event *Event
+
+	for ai.enable {
+		select {
+		case msg =<- ai.msgch:
+			ai.procMsg(msg)
+		case event =<- ai.eventch:
+			ai.procEvent(event)
+		}
+	}
+		
+}
+
 func NewAIUser() *AIUser {
 	ai := &AIUser{
 		name: "AI",
+		enable: true,
+		shipmap: make(map[int]ShipStatus),
+		msgch: make(chan *Msg, 128),
+		eventch: make(chan *Event, 8),
 	}
 	InitShip(&ai.Ship)
 	ai.X = 480
@@ -105,5 +188,6 @@ func NewAIUser() *AIUser {
 	ai.Hp = 100
 	InitList(&ai.sceneList, ai)
 	ai.algo = NewAISimapleAlgo()
+	go ai.aiEventRoutine()
 	return ai
 }

@@ -106,12 +106,15 @@ func (u *User) UserEventRoutine() {
 		if event.cmd == kEventKickClient {
 			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
 			// del current player from scene
+			fmt.Printf("here1\n")
 			u.scene.DelPlayer(u)
 			u.enable = false
 			u.Logout()
+			fmt.Printf("here2\n")
 			if event.callback != nil {
 				event.callback(event, nil)
 			}
+			fmt.Printf("here3\n")
 		}
 	}
 

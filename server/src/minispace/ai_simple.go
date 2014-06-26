@@ -2,11 +2,14 @@ package minispace
 
 type aiSimpleAlgo struct {
 	shootDelta float64
+	rotateDelta float64
 }
 
 func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
 	// just do right rotate
 	ai.ActRotate(2)
+	ai.ActMove(1)
+
 	if algo.shootDelta >= 1000 {
 		// shoot if possible
 		ai.ActShoot()

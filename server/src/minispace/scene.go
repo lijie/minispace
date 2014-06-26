@@ -59,6 +59,7 @@ func (s *Scene) allocId() (int, error) {
 }
 
 func (s *Scene) doSceneEvent(e *Event) {
+	fmt.Printf("call doSceneEvent")
 	switch e.cmd {
 	case kEventAddPlayer:
 		s.addPlayer(e)
@@ -122,9 +123,10 @@ func (s *Scene) AddPlayer(u Player) (chan *Packet, error) {
 	}
 
 	s.cmd_chan <- &cmd
-//	fmt.Printf("wait add client\n")
+	fmt.Printf("wait add client\n")
 	// wait
 	lock.Lock()
+	fmt.Printf("wait add client done\n")
 
 	if err != nil {
 		return nil, err
@@ -226,6 +228,7 @@ func (s *Scene) addai(num int) {
 }
 
 func (s *Scene) addPlayer(e *Event) {
+	fmt.Printf("call addPlayer")
 	e.sender.SetScene(s)
 
 	if s.num >= 16 {
@@ -362,6 +365,7 @@ func (s *Scene) Run() {
 			s.doSceneEvent(e)
 		}
 	}
+	fmt.Printf("scene stop\n")
 }
 
 func NewScene() *Scene {
