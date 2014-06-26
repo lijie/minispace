@@ -15,6 +15,7 @@ type Event struct {
 type Scene struct {
 	activeList List
 	deadList List
+	sceneList List
 	num int
 	cli_chan chan *Packet
 	cmd_chan chan *Event
@@ -93,7 +94,9 @@ func (s *Scene) delPlayer(e *Event) {
 
 	id := e.sender.UserId()
 	// s.clientList.Remove(e.sender.pos)
-	e.sender.SceneListNode().RemoveSelf()
+	ship := e.sender.GetShip()
+	ship.sceneList.RemoveSelf()
+	ship.statusList.RemoveSelf()
 
 	s.BroadProto(nil, true, kCmdUserKick, "id", &id)
 
@@ -148,7 +151,7 @@ func (s *Scene) BroadProto(sender Player, exclusion bool, cmd float64, field str
 	msg.Cmd = cmd
 	msg.Body[field] = data
 
-	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
 		u = p.Host().(Player)
 		if u == sender && exclusion {
 			continue
@@ -171,7 +174,7 @@ func (s *Scene) broadStopBeam(u Player, beamid int, hit int) {
 func (s *Scene) notifyAddUser(u Player) {
 	var t Player
 	var n []*ProtoAddUser
-	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
 		t = p.Host().(Player)
 		if t == u {
 			continue
@@ -202,6 +205,7 @@ func (s *Scene) addai(num int) {
 	var id int
 	var err error
 	var l *List
+	var ship *Ship
 
 	for i := 0; i < num; i++ {
 		ai = NewAIUser()
@@ -212,8 +216,12 @@ func (s *Scene) addai(num int) {
 
 		ai.SetScene(s)
 		ai.SetUserId(id)
-		l = ai.SceneListNode()
-		s.activeList.PushBack(l)
+
+		ship = ai.GetShip()
+
+		s.activeList.PushBack(&ship.statusList)
+		s.sceneList.PushBack(&ship.sceneList)
+
 		s.num++
 		fmt.Printf("add ai %d\n", id)
 
@@ -246,8 +254,9 @@ func (s *Scene) addPlayer(e *Event) {
 	// e.sender.pos = s.clientList.PushBack(e.sender)
 
 	// add to active list
-	l := e.sender.SceneListNode()
-	s.activeList.PushBack(l)
+	ship := e.sender.GetShip()
+	s.activeList.PushBack(&ship.statusList)
+	s.sceneList.PushBack(&ship.sceneList)
 
 	s.num++
 	e.data = true
@@ -277,7 +286,7 @@ func (s *Scene) broadShipStatus() {
 	var c Player
 	var n []*ShipStatus
 
-	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
+	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
 		c = p.Host().(Player)
 		n = append(n, c.Status())
 	}
@@ -293,6 +302,7 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 	var hit bool
 	var target Player
 	var node *List
+	var ship *Ship
 
 	p := l.Next()
 	for p != l {
@@ -308,7 +318,9 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 
 		// hit
 		if target.HpDown(20) == 0 {
+			ship = target.GetShip()
 			// remvoe target from active list
+			ship.statusList.RemoveSelf()
 			node = target.SceneListNode()
 			node.RemoveSelf()
 			// add target to dead list
@@ -330,8 +342,8 @@ func (s *Scene) checkDead(p Player, delta float64) {
 		// restart
 		ship.deadCD = 0
 		ship.Hp = 100
-		ship.sceneList.RemoveSelf()
-		s.activeList.PushBack(&ship.sceneList)
+		ship.statusList.RemoveSelf()
+		s.activeList.PushBack(&ship.statusList)
 		p.SetActive()
 		ship.scene.BroadProto(p, false, kCmdShipRestart, "data", p.UserId())
 		fmt.Printf("ship %d restart\n", p.UserId())
@@ -399,5 +411,6 @@ func NewScene() *Scene {
 	}
 	InitList(&s.activeList, s)
 	InitList(&s.deadList, s)
+	InitList(&s.sceneList, s)
 	return s
 }

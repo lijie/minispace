@@ -184,6 +184,7 @@ func NewAIUser() *AIUser {
 	ai.Y = 320
 	ai.Hp = 100
 	InitList(&ai.sceneList, ai)
+	InitList(&ai.statusList, ai)
 	ai.algo = NewAISimapleAlgo()
 	go ai.aiEventRoutine()
 	return ai

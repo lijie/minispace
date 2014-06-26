@@ -321,30 +321,30 @@ func procUserAction(user *User, msg *Msg) int {
 }
 
 func procShipRestart(user *User, msg *Msg) int {
-	fmt.Printf("ship restart %s\n", user.Name)
-
-	if !user.enable || !user.login || user.status != kStatusDead {
-		return PROC_KICK
-	}
-
-	if user.scene == nil {
-		return PROC_ERR
-	}
-
-	// update status
-	user.X = msg.Body["x"].(float64)
-	user.Y = msg.Body["y"].(float64)
-	user.Angle = msg.Body["angle"].(float64)
-	user.Hp = 100
-
-	// remove self from deadlist
-	user.sceneList.RemoveSelf()
-
-	// add self to activelist
-	user.scene.activeList.PushBack(&user.sceneList)
-
-	// broad to all clients
-	user.scene.BroadProto(user, true, kCmdShipRestart, "data", user.Id)
+//	fmt.Printf("ship restart %s\n", user.Name)
+//
+//	if !user.enable || !user.login || user.status != kStatusDead {
+//		return PROC_KICK
+//	}
+//
+//	if user.scene == nil {
+//		return PROC_ERR
+//	}
+//
+//	// update status
+//	user.X = msg.Body["x"].(float64)
+//	user.Y = msg.Body["y"].(float64)
+//	user.Angle = msg.Body["angle"].(float64)
+//	user.Hp = 100
+//
+//	// remove self from deadlist
+//	user.sceneList.RemoveSelf()
+//
+//	// add self to activelist
+//	user.scene.activeList.PushBack(&user.sceneList)
+//
+//	// broad to all clients
+//	user.scene.BroadProto(user, true, kCmdShipRestart, "data", user.Id)
 	return PROC_OK
 }
 
@@ -366,4 +366,5 @@ func InitUser(u *User, c *Client) {
 	u.Hp = 100
 	u.eventch = make(chan *Event, 128)
 	InitList(&u.sceneList, u)
+	InitList(&u.statusList, u)
 }
