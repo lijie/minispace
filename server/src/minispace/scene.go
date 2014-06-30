@@ -13,18 +13,25 @@ type Event struct {
 }
 
 type Scene struct {
+	// save all ships in this scene
+	shipList List
+	// all alive ships
 	activeList List
+	// all dead ships
 	deadList List
-	sceneList List
+	// ship count
 	num int
-	cli_chan chan *Packet
-	cmd_chan chan *Event
-	lock sync.Mutex
-	enable bool
+	// bitmap for ship id
 	idmap int
-	beamPool sync.Pool
+	enable bool
+	// packet from ship
+	cli_chan chan *Packet
+	// for internal event
+	cmd_chan chan *Event
 }
 
+// TODO:
+// only one scene right now
 var currentScene *Scene
 func init() {
 	currentScene = NewScene()
@@ -151,7 +158,7 @@ func (s *Scene) BroadProto(sender Player, exclusion bool, cmd float64, field str
 	msg.Cmd = cmd
 	msg.Body[field] = data
 
-	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
+	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
 		u = p.Host().(Player)
 		if u == sender && exclusion {
 			continue
@@ -174,7 +181,7 @@ func (s *Scene) broadStopBeam(u Player, beamid int, hit int) {
 func (s *Scene) notifyAddUser(u Player) {
 	var t Player
 	var n []*ProtoAddUser
-	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
+	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
 		t = p.Host().(Player)
 		if t == u {
 			continue
@@ -219,7 +226,7 @@ func (s *Scene) addai(num int) {
 		ship = ai.GetShip()
 
 		s.activeList.PushBack(&ship.statusList)
-		s.sceneList.PushBack(&ship.sceneList)
+		s.shipList.PushBack(&ship.sceneList)
 
 		s.num++
 		fmt.Printf("add ai %d\n", id)
@@ -255,7 +262,7 @@ func (s *Scene) addPlayer(e *Event) {
 	// add to active list
 	ship := e.sender.GetShip()
 	s.activeList.PushBack(&ship.statusList)
-	s.sceneList.PushBack(&ship.sceneList)
+	s.shipList.PushBack(&ship.sceneList)
 
 	s.num++
 	e.data = true
@@ -285,7 +292,7 @@ func (s *Scene) broadShipStatus() {
 	var c Player
 	var n []*ShipStatus
 
-	for p := s.sceneList.Next(); p != &s.sceneList; p = p.Next() {
+	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
 		c = p.Host().(Player)
 		n = append(n, c.Status())
 	}
@@ -408,6 +415,6 @@ func NewScene() *Scene {
 	}
 	InitList(&s.activeList, s)
 	InitList(&s.deadList, s)
-	InitList(&s.sceneList, s)
+	InitList(&s.shipList, s)
 	return s
 }

@@ -17,22 +17,6 @@ type UserDb struct {
 	Lose int
 }
 
-//type ShipStatus struct {
-//	// position
-//	X float64 `json:"x"`
-//	Y float64 `json:"y"`
-//	Angle float64 `json:"angle"`
-//	// forward or backward
-//	Move int `json:"move"`
-//	// left-rotate or right->rotate
-//	Rotate int `json:"rotate"`
-//	// shoot
-//	// Act int `json:"act"`
-//	Hp float64 `json:"hp"`
-//	// ship id
-//	Id int `json:"id"`
-//}
-
 type ShipAttr struct {
 	lv, speed, hp, beam int
 }
@@ -105,15 +89,12 @@ func (u *User) UserEventRoutine() {
 		if event.cmd == kEventKickClient {
 			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
 			// del current player from scene
-			fmt.Printf("here1\n")
 			u.scene.DelPlayer(u)
 			u.enable = false
 			u.Logout()
-			fmt.Printf("here2\n")
 			if event.callback != nil {
 				event.callback(event, nil)
 			}
-			fmt.Printf("here3\n")
 		}
 	}
 
@@ -321,30 +302,6 @@ func procUserAction(user *User, msg *Msg) int {
 }
 
 func procShipRestart(user *User, msg *Msg) int {
-//	fmt.Printf("ship restart %s\n", user.Name)
-//
-//	if !user.enable || !user.login || user.status != kStatusDead {
-//		return PROC_KICK
-//	}
-//
-//	if user.scene == nil {
-//		return PROC_ERR
-//	}
-//
-//	// update status
-//	user.X = msg.Body["x"].(float64)
-//	user.Y = msg.Body["y"].(float64)
-//	user.Angle = msg.Body["angle"].(float64)
-//	user.Hp = 100
-//
-//	// remove self from deadlist
-//	user.sceneList.RemoveSelf()
-//
-//	// add self to activelist
-//	user.scene.activeList.PushBack(&user.sceneList)
-//
-//	// broad to all clients
-//	user.scene.BroadProto(user, true, kCmdShipRestart, "data", user.Id)
 	return PROC_OK
 }
 
@@ -360,11 +317,11 @@ func (user *User) UserName() string {
 }
 
 func InitUser(u *User, c *Client) {
-	u.beamList = list.New()
+	InitShip(&u.Ship)
 	u.enable = true
 	u.conn = c
 	u.Hp = 100
-	u.eventch = make(chan *Event, 128)
+	u.eventch = make(chan *Event, 8)
 	InitList(&u.sceneList, u)
 	InitList(&u.statusList, u)
 }
