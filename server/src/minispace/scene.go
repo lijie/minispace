@@ -204,7 +204,6 @@ func (s *Scene) addai(num int) {
 	var ai *AIUser
 	var id int
 	var err error
-	var l *List
 	var ship *Ship
 
 	for i := 0; i < num; i++ {
@@ -301,7 +300,6 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 	var tmp *List
 	var hit bool
 	var target Player
-	var node *List
 	var ship *Ship
 
 	p := l.Next()
@@ -321,10 +319,9 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 			ship = target.GetShip()
 			// remvoe target from active list
 			ship.statusList.RemoveSelf()
-			node = target.SceneListNode()
-			node.RemoveSelf()
+
 			// add target to dead list
-			s.deadList.PushBack(node)
+			s.deadList.PushBack(&ship.statusList)
 			// notify target is dead
 			target.SetDead()
 			s.broadShipDead(target.UserId())

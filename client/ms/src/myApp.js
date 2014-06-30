@@ -57,8 +57,10 @@ var Ship = cc.Class.extend({
     },
 
     restart:function(self) {
-	this.x = 480;
-	this.y = 320;
+	if (self) {
+	    this.x = 480;
+	    this.y = 320;
+	}
 	this.angle = 0;
 	this.move = MOVE_NONE;
 	this.rotate = ROTATE_NONE;
@@ -588,9 +590,9 @@ var GameLayer = cc.Layer.extend({
 	    s = obj.body.users[i];
 	    if (s.id == myShip.id) {
 		myShip.sethp(s.hp);
-		if (s.hp == 0) {
-		    console.log("hp is 0");
-		}
+//		if (s.hp == 0) {
+//		    console.log("hp is 0");
+//		}
 		continue;
 	    }
 
