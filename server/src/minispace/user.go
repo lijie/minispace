@@ -1,9 +1,7 @@
 package minispace
 
 import _ "code.google.com/p/go.net/websocket"
-import "container/list"
 import "fmt"
-import "math"
 import "time"
 import "sync"
 
@@ -21,53 +19,6 @@ type ShipAttr struct {
 	lv, speed, hp, beam int
 }
 
-type Rect struct {
-	x, y, width, height int
-}
-
-func (r *Rect) InRect(x, y int) bool {
-	if x < r.x || x > r.x + r.width {
-		return false
-	}
-	if y < r.y || y > r.y + r.height {
-		return false
-	}
-	return true
-}
-
-type Beam struct {
-	X, Y, Angle float64
-	radian float64
-	id int
-	pos *list.Element
-}
-
-func (b *Beam) Hit(x int, y int) bool {
-	r := Rect{x - 25, y - 25, 50, 50}
-	if r.InRect(int(b.X), int(b.Y)) {
-		return true
-	}
-	return false
-}
-
-// beam speed: 1000pix/3seconds
-func (b *Beam) Update(delta float64) bool {
-	// update position
-	r := 1000.0 / (3.0 * 1000.0) * delta;
-	b.X = b.X + r * math.Sin(b.radian)
-	b.Y = b.Y + r * math.Cos(b.radian)
-//	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
-
-	// if out of screen?
-	if b.X < 0 || b.X > kScreenWidth {
-		return false
-	}
-	if b.Y < 0 || b.Y > kScreenHeight {
-		return false
-	}
-	return true
-}
-
 type User struct {
 	UserDb
 	Ship
@@ -75,26 +26,31 @@ type User struct {
 	login bool
 	dirty bool
 	eventch chan *Event
+	msgch chan *Msg
 	lasterr int
 	conn *Client
 }
 
 func (u *User) UserEventRoutine() {
 	var event *Event
+	var msg *Msg
 
 	for u.enable {
-		event = <- u.eventch
-
-		// be kicked
-		if event.cmd == kEventKickClient {
-			fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
-			// del current player from scene
-			u.scene.DelPlayer(u)
-			u.enable = false
-			u.Logout()
-			if event.callback != nil {
-				event.callback(event, nil)
+		select {
+		case event = <- u.eventch:
+			// be kicked
+			if event.cmd == kEventKickClient {
+				fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
+				// del current player from scene
+				u.scene.DelPlayer(u)
+				u.enable = false
+				u.Logout()
+				if event.callback != nil {
+					event.callback(event, nil)
+				}
 			}
+		case msg = <- u.msgch:
+			u.conn.Reply(msg)
 		}
 	}
 
@@ -308,7 +264,13 @@ func procShipRestart(user *User, msg *Msg) int {
 // for Player interface
 
 func (user *User) SendClient(msg *Msg) error {
-	user.conn.Reply(msg)
+	select {
+	case user.msgch <- msg:
+		break
+	default:
+		fmt.Printf("send to client %s but channel is full\n", user.Name)
+	}
+
 	return nil
 }
 
@@ -322,6 +284,7 @@ func InitUser(u *User, c *Client) {
 	u.conn = c
 	u.Hp = 100
 	u.eventch = make(chan *Event, 8)
+	u.msgch = make(chan *Msg, 64)
 	InitList(&u.sceneList, u)
 	InitList(&u.statusList, u)
 }

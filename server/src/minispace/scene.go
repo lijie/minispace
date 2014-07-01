@@ -315,7 +315,6 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 		target = p.Host().(Player)
 		p = tmp
 
-//		hit = shooter.CheckHit(target)
 		hit = ShipCheckHit(shooter, target)
 		if !hit {
 			continue

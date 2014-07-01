@@ -50,6 +50,53 @@ type Ship struct {
 	status int
 }
 
+type Rect struct {
+	x, y, width, height int
+}
+
+func (r *Rect) InRect(x, y int) bool {
+	if x < r.x || x > r.x + r.width {
+		return false
+	}
+	if y < r.y || y > r.y + r.height {
+		return false
+	}
+	return true
+}
+
+type Beam struct {
+	X, Y, Angle float64
+	radian float64
+	id int
+	pos *list.Element
+}
+
+func (b *Beam) Hit(x int, y int) bool {
+	r := Rect{x - 25, y - 25, 50, 50}
+	if r.InRect(int(b.X), int(b.Y)) {
+		return true
+	}
+	return false
+}
+
+// beam speed: 1000pix/3seconds
+func (b *Beam) Update(delta float64) bool {
+	// update position
+	r := 1000.0 / (3.0 * 1000.0) * delta;
+	b.X = b.X + r * math.Sin(b.radian)
+	b.Y = b.Y + r * math.Cos(b.radian)
+//	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
+
+	// if out of screen?
+	if b.X < 0 || b.X > kScreenWidth {
+		return false
+	}
+	if b.Y < 0 || b.Y > kScreenHeight {
+		return false
+	}
+	return true
+}
+
 func (p *Ship) SetActive() {
 	p.status = kStatusActive
 }
@@ -104,7 +151,7 @@ func ShipCheckHit(sender Player, target Player) bool {
 		p.beamMap = p.beamMap &^ (1 << uint(beam.id))
 		p.scene.broadStopBeam(sender, int(beam.id), 1)
 
-		// hit
+		// BUG:
 		return true
 	}
 
