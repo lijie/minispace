@@ -67,6 +67,7 @@ func (r *Rect) InRect(x, y int) bool {
 type Beam struct {
 	X, Y, Angle float64
 	radian float64
+	distance float64
 	id int
 	pos *list.Element
 }
@@ -86,7 +87,11 @@ func (b *Beam) Update(delta float64) bool {
 	b.X = b.X + r * math.Sin(b.radian)
 	b.Y = b.Y + r * math.Cos(b.radian)
 //	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
+	b.distance += r
 
+	if b.distance > 1000 {
+		return false
+	}
 	// if out of screen?
 	if b.X < 0 || b.X > kMapWidth {
 		return false
@@ -193,7 +198,7 @@ func ShipAddBeam(player Player, beamid int) error {
 	b := &Beam{
 		ship.X, ship.Y, ship.Angle + 90,
 		(ship.Angle + 90) * math.Pi / 180,
-		beamid, nil,
+		0, beamid, nil,
 	}
 
 	b.pos = ship.beamList.PushBack(b)

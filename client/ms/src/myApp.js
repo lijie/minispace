@@ -24,6 +24,8 @@ SCREEN_HEIGHT = 640
 MAP_WIDTH = SCREEN_WIDTH * 2
 MAP_HEIGHT = SCREEN_HEIGHT * 2
 
+var coord_x = 0;
+var coord_y = 0;
 
 // player ship
 var Ship = cc.Class.extend({
@@ -71,7 +73,7 @@ var Ship = cc.Class.extend({
         this.sprite.setAnchorPoint(0.5, 0.5);
         this.sprite.setPosition(x, y);
 	this.sprite.setScale(0.5);
-	layer.addChild(this.sprite, 1);
+	layer.addChild(this.sprite, 20);
 	this.parent = layer;
 
 	// set name
@@ -218,7 +220,7 @@ var Ship = cc.Class.extend({
 	_beam = cc.Sprite.create(s_beam1);
 	_beam.setPosition(this.sprite.getPositionX(),
 			  this.sprite.getPositionY());
-        this.parent.addChild(_beam, 1);
+        this.parent.addChild(_beam, 25);
 
 	angle = this.sprite.getRotation() + 90;
 	_beam.setRotation(this.sprite.getRotation());
@@ -248,8 +250,8 @@ var Ship = cc.Class.extend({
 	    seq: 0,
 	    userid: ME.name,
 	    body: {
-		x: this.sprite.getPositionX(),
-		y: this.sprite.getPositionY(),
+		x: this.sprite.getPositionX() + coord_x,
+		y: this.sprite.getPositionY() + coord_y,
 		angle: this.sprite.getRotation(),
 		move: this.move,
 		rotate: this.rotate
@@ -266,8 +268,8 @@ var Ship = cc.Class.extend({
 	    seq: 0,
 	    userid: ME.name,
 	    body: {
-		x: this.sprite.getPositionX(),
-		y: this.sprite.getPositionY(),
+		x: this.sprite.getPositionX() + coord_x,
+		y: this.sprite.getPositionY() + coord_y,
 		angle: this.sprite.getRotation(),
 		move: this.move,
 		rotate: this.rotate,
@@ -276,7 +278,7 @@ var Ship = cc.Class.extend({
 	    }
 	}
 	var str = JSON.stringify(obj, undefined, 2);
-	// console.log("send", str);
+	console.log("send shoot beam", str);
 	miniConn.send(str);
     },
 
@@ -412,12 +414,52 @@ var NPCLayer = cc.Layer.extend({
     },
 });
 
+var BgLayer = cc.Layer.extend({
+    init:function() {
+	this._super();
+    },
+
+    onEnter:function() {
+	this._super();
+
+	// add background
+	batch = cc.SpriteBatchNode.create(s_bg, 90);
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 0);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 256);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 512);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 768);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 1024);
+	    batch.addChild(p);
+	}
+	this.addChild(batch, 0);
+    },
+});
+
 var GameLayer = cc.Layer.extend({
     isMouseDown:false,
     helloImg:null,
     helloLabel:null,
     circle:null,
     npclayer:null,
+    bglayer:null,
     border_width:0,
     border_height:0,
 
@@ -457,33 +499,20 @@ var GameLayer = cc.Layer.extend({
 	this.setKeyboardEnabled(true);
 
 	this.npclayer = new NPCLayer();
-        this.addChild(this.npclayer);
+        this.addChild(this.npclayer, 10);
         this.npclayer.init();
 	// layer's anchor always 0,0
 	this.npclayer.setPosition(-480, -320);
+
+	this.bglayer = new BgLayer();
+	this.addChild(this.bglayer, 5);
+        this.bglayer.init();
+	// layer's anchor always 0,0
+	this.bglayer.setPosition(-480, -320);
     },
 
     onEnter: function() {
 	this._super();
-
-	// add background
-	batch = cc.SpriteBatchNode.create(s_bg, 15);
-	for (var i = 0; i < 5; i++) {
-	    p = cc.Sprite.createWithTexture(batch.getTexture());
-	    p.setPosition(i * 256, 0);
-	    batch.addChild(p);
-	}
-	for (var i = 0; i < 5; i++) {
-	    p = cc.Sprite.createWithTexture(batch.getTexture());
-	    p.setPosition(i * 256, 256);
-	    batch.addChild(p);
-	}
-	for (var i = 0; i < 5; i++) {
-	    p = cc.Sprite.createWithTexture(batch.getTexture());
-	    p.setPosition(i * 256, 512);
-	    batch.addChild(p);
-	}
-	this.addChild(batch, 0);
 
 	// register cmd
 	miniConn.setCmdCallback(3, this.procUserNotify, this);
@@ -501,7 +530,7 @@ var GameLayer = cc.Layer.extend({
 	bloodbar.setType(cc.PROGRESS_TIMER_TYPE_BAR);
         bloodbar.setMidpoint(cc.p(0, 0));
         bloodbar.setBarChangeRate(cc.p(1, 0));
-        this.addChild(bloodbar);
+        this.addChild(bloodbar, 30);
 	bloodbar.setAnchorPoint(0, 0);
         bloodbar.setPosition(40, 600);
 	bloodbar.setPercentage(100);
@@ -513,6 +542,8 @@ var GameLayer = cc.Layer.extend({
     createSelf: function(id) {
         var size = cc.Director.getInstance().getWinSize();
 	myShip.create(id, ME.name, this, size.width / 2, size.height / 2);
+	coord_x = 480;
+	coord_y = 320;
     },
 
     createOtherShip: function(id) {
@@ -635,6 +666,15 @@ var GameLayer = cc.Layer.extend({
 	x = this.npclayer.getPositionX() - dis.x;
 	y = this.npclayer.getPositionY() - dis.y;
 	this.npclayer.setPosition(x, y);
+
+	// update coord
+	coord_x = coord_x + dis.x;
+	coord_y = coord_y + dis.y;
+
+	// move bglayer
+	x = this.bglayer.getPositionX() - dis.x / 2;
+	y = this.bglayer.getPositionY() - dis.y / 2;
+	this.bglayer.setPosition(x, y);
     },
 
     moveShips: function(dt) {
@@ -688,7 +728,7 @@ var GameLayer = cc.Layer.extend({
 	    if (o == undefined || o == null) {
 		otherShips[s.id] = new Ship();
 		otherShips[s.id].setid(s.id);
-		console.log("create other ship", s.id);
+		console.log("create other ship", s);
 		myShip.parent.createOtherShip(s.id);
 	    }
 	    otherShips[s.id].setPos(s.x, s.y, s.angle);
@@ -709,7 +749,7 @@ var GameLayer = cc.Layer.extend({
 	if (o == undefined || o == null) {
 	    otherShips[s.id] = new Ship();
 	    otherShips[s.id].setid(s.id);
-	    console.log("create other ship", s.id);
+	    console.log("create other ship", s);
 	    myShip.parent.createOtherShip(s.id);
 	}
 	otherShips[s.id].setPos(s.x, s.y, s.angle);
