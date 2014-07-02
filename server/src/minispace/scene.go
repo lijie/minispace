@@ -275,7 +275,7 @@ func (s *Scene) addPlayer(e *Event) {
 	s.notifyAddUser(e.sender)
 
 	if s.num < 8 {
-		s.addai(8 - s.num)
+		// s.addai(8 - s.num)
 	}
 }
 

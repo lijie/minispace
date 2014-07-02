@@ -88,10 +88,10 @@ func (b *Beam) Update(delta float64) bool {
 //	fmt.Printf("beam XY: %f, %f, %f\n", b.X, b.Y, r)
 
 	// if out of screen?
-	if b.X < 0 || b.X > kScreenWidth {
+	if b.X < 0 || b.X > kMapWidth {
 		return false
 	}
-	if b.Y < 0 || b.Y > kScreenHeight {
+	if b.Y < 0 || b.Y > kMapHeight {
 		return false
 	}
 	return true

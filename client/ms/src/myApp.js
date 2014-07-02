@@ -21,20 +21,9 @@ MAX_BEAMCOUNT = 5
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
 
-// no use yet
-//var Beam = cc.Class.extend({
-//    sprite:null,
-//    moveForward: function(dt) {
-//	angle = this.sprite.getRotation();
-//	if (angle < 0)
-//	    angle = 360 + angle;
-//	r = 160 * dt;
-//	x = r * Math.sin(angle / 180 * Math.PI);
-//	y = r * Math.cos(angle / 180 * Math.PI);
-//
-//	this.sprite.setPosition(this.sprite.getPositionX() + x, this.sprite.getPositionY() + y);
-//    },
-//});
+MAP_WIDTH = SCREEN_WIDTH * 2
+MAP_HEIGHT = SCREEN_HEIGHT * 2
+
 
 // player ship
 var Ship = cc.Class.extend({
@@ -52,12 +41,13 @@ var Ship = cc.Class.extend({
     waitcd:0,
     dead:false,
     emitter:null,
+    isself:false,
 
     ctor:function() {
     },
 
-    restart:function(self) {
-	if (self) {
+    restart:function() {
+	if (this.isself) {
 	    this.x = 480;
 	    this.y = 320;
 	}
@@ -70,7 +60,7 @@ var Ship = cc.Class.extend({
 	this.sprite.setRotation(0);
 
 	this.sprite.setVisible(true);
-	if (self) {
+	if (this.isself) {
 	    this.bloodbar.setPercentage(100);
 	    this.parent.setKeyboardEnabled(true);
 	}
@@ -139,6 +129,9 @@ var Ship = cc.Class.extend({
 	this.bloodbar.setPercentage(hp);
     },
 
+    moveSelfForward: function(dt) {
+    },
+
     moveForward: function(dt) {
 	angle = this.sprite.getRotation() + 90;
 	if (angle >= 360)
@@ -150,13 +143,13 @@ var Ship = cc.Class.extend({
 	x = this.sprite.getPositionX() + x
 	y = this.sprite.getPositionY() + y
 
-	if (x > SCREEN_WIDTH)
-	    x = SCREEN_WIDTH
+	if (x > MAP_WIDTH)
+	    x = MAP_WIDTH
 	else if (x < 0)
 	    x = 0
 
-	if (y > SCREEN_HEIGHT)
-	    y = SCREEN_HEIGHT
+	if (y > MAP_HEIGHT)
+	    y = MAP_HEIGHT
 	else if (y < 0)
 	    y = 0
 
@@ -174,13 +167,13 @@ var Ship = cc.Class.extend({
 	x = this.sprite.getPositionX() - x
 	y = this.sprite.getPositionY() - y
 
-	if (x > SCREEN_WIDTH)
-	    x = SCREEN_WIDTH
+	if (x > MAP_WIDTH)
+	    x = MAP_WIDTH
 	else if (x < 0)
 	    x = 0
 
-	if (y > SCREEN_HEIGHT)
-	    y = SCREEN_HEIGHT
+	if (y > MAP_HEIGHT)
+	    y = MAP_HEIGHT
 	else if (y < 0)
 	    y = 0
 
@@ -324,11 +317,11 @@ var Ship = cc.Class.extend({
 	miniConn.send(str);
     },
 
-    die: function(self) {
+    die: function() {
 	// stop notify server ship status
 	this.dead = true;
 
-	if (self) {
+	if (this.isself) {
 	    // stop recv control msg from keyboard
 	    this.parent.setKeyboardEnabled(false);
 
@@ -386,17 +379,47 @@ var Ship = cc.Class.extend({
     }
 });
 
+Ship.moveDistance = function(rotate, dt) {
+    angle = rotate + 90;
+    if (angle >= 360)
+	angle = angle - 360;
+    r = 160 * dt;
+    x = r * Math.sin(angle / 180 * Math.PI);
+    y = r * Math.cos(angle / 180 * Math.PI);
+    return {x:x, y:y};
+};
+
+Ship.isBorder = function(x, y) {
+    if (x < 0 || x > SCREEN_WIDTH)
+	return true
+    if (y < 0 || y > SCREEN_HEIGHT)
+	return true
+    return false
+};
+
 var myShip = new Ship();
 var otherShips = new Array(16);
 // save data for others
 var THEM = new Array(16);
+
+var NPCLayer = cc.Layer.extend({
+    init:function() {
+	this._super();
+    },
+
+    onEnter:function() {
+	this._super();
+    },
+});
 
 var GameLayer = cc.Layer.extend({
     isMouseDown:false,
     helloImg:null,
     helloLabel:null,
     circle:null,
-    emitter:null,
+    npclayer:null,
+    border_width:0,
+    border_height:0,
 
     init:function () {
 
@@ -432,6 +455,12 @@ var GameLayer = cc.Layer.extend({
 	this.scheduleUpdate();
 	this.schedule(this.timeCallback, 0.05);
 	this.setKeyboardEnabled(true);
+
+	this.npclayer = new NPCLayer();
+        this.addChild(this.npclayer);
+        this.npclayer.init();
+	// layer's anchor always 0,0
+	this.npclayer.setPosition(-480, -320);
     },
 
     onEnter: function() {
@@ -491,7 +520,8 @@ var GameLayer = cc.Layer.extend({
 	name = ""
 	if (THEM[id] != undefined && THEM[id] != null)
 	    name = THEM[id].name
-	otherShips[id].create(id, name, this, size.width / 2, size.height / 2);
+	// otherShips[id].create(id, name, this, size.width / 2, size.height / 2);
+	otherShips[id].create(id, name, this.npclayer, size.width / 2, size.height / 2);
     },
 
     removeOtherShip: function(id) {
@@ -505,7 +535,7 @@ var GameLayer = cc.Layer.extend({
     },
 
     onKeyUp: function(key) {
-	// console.log("key ", key);
+	console.log("key ", key);
 	if (key == KEY_UP) {
 	    myShip.move = MOVE_NONE;
 	} else if (key == KEY_DOWN) {
@@ -514,6 +544,27 @@ var GameLayer = cc.Layer.extend({
 	    myShip.rotate = ROTATE_NONE;
 	} else if (key == KEY_RIGHT) {
 	    myShip.rotate = ROTATE_NONE;
+	}
+
+	if (key == 86) {
+	    this.npclayer.setVisible(false);
+	}
+	if (key == 66) {
+	    this.npclayer.setVisible(true);
+	}
+	if (key == 39) {
+	    x = this.npclayer.getPositionX();
+	    y = this.npclayer.getPositionY();
+	    this.npclayer.setPosition(x + 50, y)
+	}
+	if (key == 37) {
+	    x = this.npclayer.getPositionX();
+	    y = this.npclayer.getPositionY();
+	    this.npclayer.setPosition(x - 50, y)
+	}
+	if (key == 77) {
+	    console.log("ship xy", myShip.sprite.getPosition());
+	    console.log("npclayer xy", this.npclayer.getPosition(), this.npclayer.convertToWorldSpace(cc.p(0,0)));
 	}
     },
 
@@ -550,9 +601,46 @@ var GameLayer = cc.Layer.extend({
 	}
     },
 
+    moveSelfSprite: function(sp, dt) {
+	if (sp.move == MOVE_FORWARD) {
+	    this.moveSelfForward(dt, 1);
+	}
+	if (sp.move == MOVE_BACKWARD) {
+	    this.moveSelfForward(dt, 0);
+	}
+	if (sp.rotate == ROTATE_LEFT) {
+	    sp.moveLRotate(dt);
+	}
+	if (sp.rotate == ROTATE_RIGHT) {
+	    sp.moveRRotate(dt);
+	}
+    },
+
+    moveSelfForward: function(dt, dir) {
+	rt = myShip.sprite.getRotation();
+	if (dir == 0)
+	    rt = rt + 180
+	dis = Ship.moveDistance(rt, dt);
+
+	// if ship in the middle of screen, move ship
+	x = myShip.sprite.getPositionX() + dis.x;
+	y = myShip.sprite.getPositionY() + dis.y;
+	if (!Ship.isBorder(x, y)) {
+	    myShip.sprite.setPosition(x, y);
+	    return;
+	}
+
+	// console.log("should move npclayer\n");
+	// if ship in border of screen, move npclayer
+	x = this.npclayer.getPositionX() - dis.x;
+	y = this.npclayer.getPositionY() - dis.y;
+	this.npclayer.setPosition(x, y);
+    },
+
     moveShips: function(dt) {
 	// move self
-	this.moveSprite(myShip, dt, false);
+	// this.moveSprite(myShip, dt, false);
+	this.moveSelfSprite(myShip, dt);
 
 	// move others
 	for (var i = 0; i < otherShips.length; i++) {
@@ -668,7 +756,7 @@ var GameLayer = cc.Layer.extend({
 	console.log("shipdead", obj.body.data);
 
 	if (id == myShip.id) {
-	    myShip.die(true);
+	    myShip.die();
 	    return;
 	}
 
@@ -676,7 +764,7 @@ var GameLayer = cc.Layer.extend({
 	if (o == undefined || o == null)
 	    return;
 
-	o.die(false);
+	o.die();
     },
 
     procShipRestart: function(target, obj) {
@@ -686,7 +774,7 @@ var GameLayer = cc.Layer.extend({
 	id = obj.body.data;
 	console.log("shiprestart", id);
 	if (id == myShip.id) {
-	    myShip.restart(true);
+	    myShip.restart();
 	    return;
 	}
 
@@ -694,7 +782,7 @@ var GameLayer = cc.Layer.extend({
 	if (o == undefined || o == null)
 	    return;
 
-	o.restart(false);
+	o.restart();
     }
 });
 
@@ -705,5 +793,6 @@ var GameScene = cc.Scene.extend({
         this.addChild(layer);
         layer.init();
 	myShip.setLayer(layer);
+	myShip.isself = true;
     }
 });

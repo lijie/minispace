@@ -48,14 +48,14 @@ func (ai *AIUser) doMove(dt float64) {
 		y = ai.Y - y
 	}
 
-	if x > kScreenWidth {
-		x = kScreenWidth
+	if x > kMapWidth {
+		x = kMapWidth
 	} else if x < 0 {
 		x = 0
 	}
 
-	if y > kScreenHeight {
-		y = kScreenHeight
+	if y > kMapHeight {
+		y = kMapHeight
 	} else if y < 0 {
 		y = 0
 	}
