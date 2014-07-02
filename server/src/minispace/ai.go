@@ -68,9 +68,9 @@ func (ai *AIUser) doRotate(dt float64) {
 	var angle float64
 
 	if ai.Rotate == 2 {
-		angle = ai.Angle + 80 * (dt / 1000);
+		angle = ai.Angle + 120 * (dt / 1000);
 	} else {
-		angle = ai.Angle - 80 * (dt / 1000);
+		angle = ai.Angle - 120 * (dt / 1000);
 	}
 	if angle >= 360 {
 		angle = angle - 360

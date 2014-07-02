@@ -183,14 +183,14 @@ var Ship = cc.Class.extend({
     },
 
     moveLRotate: function(dt) {
-	angle = this.sprite.getRotation() - (80 * dt);
+	angle = this.sprite.getRotation() - (120 * dt);
 	if (angle < 0)
 	    angle = 360 + angle;
 	this.sprite.setRotation(angle);
     },
 
     moveRRotate: function(dt) {
-	angle = this.sprite.getRotation() + (80 * dt);
+	angle = this.sprite.getRotation() + (120 * dt);
 	if (angle >= 360)
 	    angle = angle - 360;
 	this.sprite.setRotation(angle);
@@ -385,7 +385,7 @@ Ship.moveDistance = function(rotate, dt) {
     angle = rotate + 90;
     if (angle >= 360)
 	angle = angle - 360;
-    r = 160 * dt;
+    r = 80 * dt;
     x = r * Math.sin(angle / 180 * Math.PI);
     y = r * Math.cos(angle / 180 * Math.PI);
     return {x:x, y:y};
