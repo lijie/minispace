@@ -20,7 +20,7 @@ type ShipAttr struct {
 }
 
 type User struct {
-	UserDb
+	userdb UserDb
 	Ship
 	enable bool
 	login bool
@@ -40,7 +40,7 @@ func (u *User) UserEventRoutine() {
 		case event = <- u.eventch:
 			// be kicked
 			if event.cmd == kEventKickClient {
-				fmt.Printf("%s be kicked by %s\n", u.Name, event.sender.UserName())
+				fmt.Printf("%s be kicked by %s\n", u.UserName(), event.sender.UserName())
 				// del current player from scene
 				u.scene.DelPlayer(u)
 				u.enable = false
@@ -54,7 +54,7 @@ func (u *User) UserEventRoutine() {
 		}
 	}
 
-	fmt.Printf("user %s end event loop\n", u.Name)
+	fmt.Printf("user %s end event loop\n", u.UserName())
 }
 
 func (u *User) KickName(name string) {
@@ -116,21 +116,21 @@ func (u *User) GetShip() *Ship {
 }
 
 func (u *User) Beat() {
-	u.Win++
+	u.userdb.Win++
 }
 
 func (u *User) SetDead() {
 	u.Ship.SetDead()
-	u.Lose++
+	u.userdb.Lose++
 }
 
 func (u *User) Logout() {
-	DeleteOnline(u.Name)
+	DeleteOnline(u.userdb.Name)
 
 	if u.dirty {
-		err := SharedDB().SyncSave(u.Name, &u.UserDb)
+		err := SharedDB().SyncSave(u.userdb.Name, &u.userdb)
 		if err != nil {
-			fmt.Printf("user %s, save db failed\n", u.Name)
+			fmt.Printf("user %s, save db failed\n", u.userdb.Name)
 			return
 		}
 
@@ -146,11 +146,11 @@ func init() {
 }
 
 func procUserUpdate(user *User, msg *Msg) int {
-	user.X = msg.Body["x"].(float64)
-	user.Y = msg.Body["y"].(float64)
-	user.Angle = msg.Body["angle"].(float64)
-	user.Move = int(msg.Body["move"].(float64))
-	user.Rotate = int(msg.Body["rotate"].(float64))
+	user.ship.X = msg.Body["x"].(float64)
+	user.ship.Y = msg.Body["y"].(float64)
+	user.ship.Angle = msg.Body["angle"].(float64)
+	user.ship.Move = int(msg.Body["move"].(float64))
+	user.ship.Rotate = int(msg.Body["rotate"].(float64))
 	return PROC_OK
 }
 
@@ -176,7 +176,7 @@ func procUserLogin(user *User, msg *Msg) int {
 
 	newbie := false
 	fmt.Printf("start load db\n")
-	err := SharedDB().SyncLoad(msg.Userid, &user.UserDb)
+	err := SharedDB().SyncLoad(msg.Userid, &user.userdb)
 	if err == ErrUserNotFound {
 		// new user
 		newbie = true
@@ -189,26 +189,26 @@ func procUserLogin(user *User, msg *Msg) int {
 	now := time.Now()
 	if !newbie {
 		// check password
-		fmt.Printf("registed user %#v\n", user.UserDb)
-		user.UserDb.LoginTime = now.Unix()
+		fmt.Printf("registed user %#v\n", user.userdb)
+		user.userdb.LoginTime = now.Unix()
 		user.MarkDirty()
 
 		// TODO: use md5 at least...
-		if password.(string) != user.Pass {
-			fmt.Printf("user %s password error\n", user.Name)
+		if password.(string) != user.userdb.Pass {
+			fmt.Printf("user %s password error\n", user.userdb.Name)
 			return PROC_ERR
 		}
 	} else {
-		user.UserDb.Name = msg.Userid
-		user.UserDb.Pass = password.(string)
-		user.UserDb.RegTime = now.Unix()
-		user.UserDb.LoginTime = now.Unix()
-		fmt.Printf("create new user %#v\n", user.UserDb)
+		user.userdb.Name = msg.Userid
+		user.userdb.Pass = password.(string)
+		user.userdb.RegTime = now.Unix()
+		user.userdb.LoginTime = now.Unix()
+		fmt.Printf("create new user %#v\n", user.userdb)
 
 		// flush to db
-		err = SharedDB().SyncSave(msg.Userid, &user.UserDb)
+		err = SharedDB().SyncSave(msg.Userid, &user.userdb)
 		if err != nil {
-			fmt.Printf("User %s save db failed\n", user.Name)
+			fmt.Printf("User %s save db failed\n", user.userdb.Name)
 			user.SetErrCode(ErrCodeDBError)
 			return PROC_ERR
 		}
@@ -219,7 +219,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	}
 
 	user.login = true
-	fmt.Printf("try add %s to scene\n", user.Name)
+	fmt.Printf("try add %s to scene\n", user.userdb.Name)
 
 	// ok, login succ, add to a scene
 	_, err = CurrentScene().AddPlayer(user)
@@ -231,7 +231,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	// all done, send reply
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
-	reply.Body["id"] = user.Id
+	reply.Body["id"] = user.ship.Id
 	user.conn.Reply(reply)
 
 	fmt.Printf("login result: %#v\n", reply)
@@ -239,11 +239,11 @@ func procUserLogin(user *User, msg *Msg) int {
 }
 
 func procUserAction(user *User, msg *Msg) int {
-	user.X = msg.Body["x"].(float64)
-	user.Y = msg.Body["y"].(float64)
-	user.Angle = msg.Body["angle"].(float64)
-	user.Move = int(msg.Body["move"].(float64))
-	user.Rotate = int(msg.Body["rotate"].(float64))
+	user.ship.X = msg.Body["x"].(float64)
+	user.ship.Y = msg.Body["y"].(float64)
+	user.ship.Angle = msg.Body["angle"].(float64)
+	user.ship.Move = int(msg.Body["move"].(float64))
+	user.ship.Rotate = int(msg.Body["rotate"].(float64))
 
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
@@ -268,21 +268,21 @@ func (user *User) SendClient(msg *Msg) error {
 	case user.msgch <- msg:
 		break
 	default:
-		fmt.Printf("send to client %s but channel is full\n", user.Name)
+		fmt.Printf("send to client %s but channel is full\n", user.userdb.Name)
 	}
 
 	return nil
 }
 
 func (user *User) UserName() string {
-	return user.Name
+	return user.userdb.Name
 }
 
 func InitUser(u *User, c *Client) {
 	InitShip(&u.Ship)
 	u.enable = true
 	u.conn = c
-	u.Hp = 100
+	u.ship.Hp = 100
 	u.eventch = make(chan *Event, 8)
 	u.msgch = make(chan *Msg, 64)
 	InitList(&u.sceneList, u)

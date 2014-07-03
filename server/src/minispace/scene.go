@@ -344,7 +344,7 @@ func (s *Scene) checkDead(p Player, delta float64) {
 	if ship.deadCD > 5000 {
 		// restart
 		ship.deadCD = 0
-		ship.Hp = 100
+		ship.ship.Hp = 100
 		ship.statusList.RemoveSelf()
 		s.activeList.PushBack(&ship.statusList)
 		p.SetActive()

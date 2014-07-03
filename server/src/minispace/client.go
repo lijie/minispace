@@ -144,7 +144,7 @@ func (c *Client) Proc() {
 		return
 	}
 
-	fmt.Printf("%s login ok\n", c.Name)
+	fmt.Printf("%s login ok\n", c.userdb.Name)
 
 	// proc player event message
 	go c.UserEventRoutine()
@@ -152,7 +152,7 @@ func (c *Client) Proc() {
 	// wait msg and forward to scene
 	c.forwardRoutine()
 
-	fmt.Printf("%s logout\n", c.Name)
+	fmt.Printf("%s logout\n", c.userdb.Name)
 	return
 }
 

@@ -32,20 +32,20 @@ func (ai *AIUser) Beat() {
 }
 
 func (ai *AIUser) doMove(dt float64) {
-	angle := ai.Angle + 90
+	angle := ai.ship.Angle + 90
 	// move
 	r := 80 * (dt / 1000);
 	x := r * math.Sin(angle * math.Pi / 180);
 	y := r * math.Cos(angle * math.Pi / 180);
 
 	// forward
-	if ai.Move == 1 {
-		x = ai.X + x
-		y = ai.Y + y
+	if ai.ship.Move == 1 {
+		x = ai.ship.X + x
+		y = ai.ship.Y + y
 	} else {
 		// backward
-		x = ai.X - x
-		y = ai.Y - y
+		x = ai.ship.X - x
+		y = ai.ship.Y - y
 	}
 
 	if x > kMapWidth {
@@ -60,17 +60,17 @@ func (ai *AIUser) doMove(dt float64) {
 		y = 0
 	}
 
-	ai.X = x
-	ai.Y = y
+	ai.ship.X = x
+	ai.ship.Y = y
 }
 
 func (ai *AIUser) doRotate(dt float64) {
 	var angle float64
 
-	if ai.Rotate == 2 {
-		angle = ai.Angle + 120 * (dt / 1000);
+	if ai.ship.Rotate == 2 {
+		angle = ai.ship.Angle + 120 * (dt / 1000);
 	} else {
-		angle = ai.Angle - 120 * (dt / 1000);
+		angle = ai.ship.Angle - 120 * (dt / 1000);
 	}
 	if angle >= 360 {
 		angle = angle - 360
@@ -79,7 +79,7 @@ func (ai *AIUser) doRotate(dt float64) {
 		angle = angle + 360
 	}
 
-	ai.Angle = angle
+	ai.ship.Angle = angle
 }
 
 func (ai *AIUser) updatePosition(delta float64) {
@@ -106,11 +106,11 @@ func (ai *AIUser) SendClient(msg *Msg) error {
 
 // for AIAction
 func (ai *AIUser) ActRotate(dir int) {
-	ai.Rotate = dir
+	ai.ship.Rotate = dir
 }
 
 func (ai *AIUser) ActMove(dir int) {
-	ai.Move = dir
+	ai.ship.Move = dir
 }
 
 func (ai *AIUser) ActShoot() error {
@@ -180,9 +180,9 @@ func NewAIUser() *AIUser {
 		eventch: make(chan *Event, 8),
 	}
 	InitShip(&ai.Ship)
-	ai.X = 480
-	ai.Y = 320
-	ai.Hp = 100
+	ai.ship.X = 480
+	ai.ship.Y = 320
+	ai.ship.Hp = 100
 	InitList(&ai.sceneList, ai)
 	InitList(&ai.statusList, ai)
 	ai.algo = NewAISimapleAlgo()

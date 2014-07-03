@@ -21,6 +21,14 @@ type Player interface {
 	GetShip() *Ship
 }
 
+// better Player interface
+type Player2 interface {
+	SendMsg(msg *Msg) error
+	Name() string
+	Dead()
+	Win()
+}
+
 type ShipStatus struct {
 	// position
 	X float64 `json:"x"`
@@ -38,7 +46,8 @@ type ShipStatus struct {
 }
 
 type Ship struct {
-	ShipStatus
+	// Player2
+	ship ShipStatus
 	// beam manager
 	beamMap int
 	beamList *list.List
@@ -115,30 +124,30 @@ func (p *Ship) SetScene(s *Scene) {
 }
 
 func (p *Ship) SetUserId(id int) {
-	p.Id = id
+	p.ship.Id = id
 }
 
 func (p *Ship) UserId() int {
-	return p.Id
+	return p.ship.Id
 }
 
 func (p *Ship) HpDown(value int) int {
-	p.Hp -= float64(value)
-	if p.Hp < 0 {
-		p.Hp = 0
+	p.ship.Hp -= float64(value)
+	if p.ship.Hp < 0 {
+		p.ship.Hp = 0
 	}
-	return int(p.Hp)
+	return int(p.ship.Hp)
 }
 
 func (p *Ship) Status() *ShipStatus {
-	return &p.ShipStatus
+	return &p.ship
 }
 
 func ShipCheckHit(sender Player, target Player) bool {
 	p := sender.GetShip()
 	t := target.GetShip()
 
-	if p.Id == target.UserId() {
+	if p.ship.Id == target.UserId() {
 		return false
 	}
 
@@ -146,11 +155,11 @@ func ShipCheckHit(sender Player, target Player) bool {
 	for b := p.beamList.Front(); b != nil; b = b.Next() {
 		beam = b.Value.(*Beam)
 		// TODO use float64 defalut
-		if !beam.Hit(int(t.X), int(t.Y)) {
+		if !beam.Hit(int(t.ship.X), int(t.ship.Y)) {
 			continue
 		}
 
-		fmt.Printf("%d hit target %d\n", p.Id, t.Id)
+		fmt.Printf("%d hit target %d\n", p.ship.Id, t.ship.Id)
 
 		p.beamList.Remove(b)
 		p.beamMap = p.beamMap &^ (1 << uint(beam.id))
@@ -196,8 +205,8 @@ func ShipAddBeam(player Player, beamid int) error {
 	// save beamid and beam
 	ship.beamMap |= (1 << uint(beamid))
 	b := &Beam{
-		ship.X, ship.Y, ship.Angle + 90,
-		(ship.Angle + 90) * math.Pi / 180,
+		ship.ship.X, ship.ship.Y, ship.ship.Angle + 90,
+		(ship.ship.Angle + 90) * math.Pi / 180,
 		0, beamid, nil,
 	}
 
@@ -206,7 +215,7 @@ func ShipAddBeam(player Player, beamid int) error {
 	data := &ProtoShootBeam{
 		BeamId: beamid, 
 	}
-	data.ShipStatus = ship.ShipStatus
+	data.ShipStatus = ship.ship
 	ship.scene.BroadProto(player, true, kCmdShootBeam, "data", data)
 	return nil
 }
