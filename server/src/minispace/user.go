@@ -146,11 +146,11 @@ func init() {
 }
 
 func procUserUpdate(user *User, msg *Msg) int {
-	user.ship.X = msg.Body["x"].(float64)
-	user.ship.Y = msg.Body["y"].(float64)
-	user.ship.Angle = msg.Body["angle"].(float64)
-	user.ship.Move = int(msg.Body["move"].(float64))
-	user.ship.Rotate = int(msg.Body["rotate"].(float64))
+	user.status.X = msg.Body["x"].(float64)
+	user.status.Y = msg.Body["y"].(float64)
+	user.status.Angle = msg.Body["angle"].(float64)
+	user.status.Move = int(msg.Body["move"].(float64))
+	user.status.Rotate = int(msg.Body["rotate"].(float64))
 	return PROC_OK
 }
 
@@ -231,7 +231,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	// all done, send reply
 	reply := NewMsg()
 	reply.Cmd = kCmdUserLogin
-	reply.Body["id"] = user.ship.Id
+	reply.Body["id"] = user.status.Id
 	user.conn.Reply(reply)
 
 	fmt.Printf("login result: %#v\n", reply)
@@ -239,11 +239,11 @@ func procUserLogin(user *User, msg *Msg) int {
 }
 
 func procUserAction(user *User, msg *Msg) int {
-	user.ship.X = msg.Body["x"].(float64)
-	user.ship.Y = msg.Body["y"].(float64)
-	user.ship.Angle = msg.Body["angle"].(float64)
-	user.ship.Move = int(msg.Body["move"].(float64))
-	user.ship.Rotate = int(msg.Body["rotate"].(float64))
+	user.status.X = msg.Body["x"].(float64)
+	user.status.Y = msg.Body["y"].(float64)
+	user.status.Angle = msg.Body["angle"].(float64)
+	user.status.Move = int(msg.Body["move"].(float64))
+	user.status.Rotate = int(msg.Body["rotate"].(float64))
 
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
@@ -282,9 +282,9 @@ func InitUser(u *User, c *Client) {
 	InitShip(&u.Ship)
 	u.enable = true
 	u.conn = c
-	u.ship.Hp = 100
+	u.status.Hp = 100
 	u.eventch = make(chan *Event, 8)
 	u.msgch = make(chan *Msg, 64)
 	InitList(&u.sceneList, u)
-	InitList(&u.statusList, u)
+	InitList(&u.stateList, u)
 }

@@ -32,20 +32,20 @@ func (ai *AIUser) Beat() {
 }
 
 func (ai *AIUser) doMove(dt float64) {
-	angle := ai.ship.Angle + 90
+	angle := ai.status.Angle + 90
 	// move
 	r := 80 * (dt / 1000);
 	x := r * math.Sin(angle * math.Pi / 180);
 	y := r * math.Cos(angle * math.Pi / 180);
 
 	// forward
-	if ai.ship.Move == 1 {
-		x = ai.ship.X + x
-		y = ai.ship.Y + y
+	if ai.status.Move == 1 {
+		x = ai.status.X + x
+		y = ai.status.Y + y
 	} else {
 		// backward
-		x = ai.ship.X - x
-		y = ai.ship.Y - y
+		x = ai.status.X - x
+		y = ai.status.Y - y
 	}
 
 	if x > kMapWidth {
@@ -60,17 +60,17 @@ func (ai *AIUser) doMove(dt float64) {
 		y = 0
 	}
 
-	ai.ship.X = x
-	ai.ship.Y = y
+	ai.status.X = x
+	ai.status.Y = y
 }
 
 func (ai *AIUser) doRotate(dt float64) {
 	var angle float64
 
-	if ai.ship.Rotate == 2 {
-		angle = ai.ship.Angle + 120 * (dt / 1000);
+	if ai.status.Rotate == 2 {
+		angle = ai.status.Angle + 120 * (dt / 1000);
 	} else {
-		angle = ai.ship.Angle - 120 * (dt / 1000);
+		angle = ai.status.Angle - 120 * (dt / 1000);
 	}
 	if angle >= 360 {
 		angle = angle - 360
@@ -79,7 +79,7 @@ func (ai *AIUser) doRotate(dt float64) {
 		angle = angle + 360
 	}
 
-	ai.ship.Angle = angle
+	ai.status.Angle = angle
 }
 
 func (ai *AIUser) updatePosition(delta float64) {
@@ -88,7 +88,7 @@ func (ai *AIUser) updatePosition(delta float64) {
 }
 
 func (ai *AIUser) Update(delta float64) {
-	if ai.status == kStatusActive {
+	if ai.state == kStateActive {
 		ai.algo.Update(ai, delta)
 		ShipUpdateBeam(ai, delta)
 		ai.updatePosition(delta)
@@ -106,11 +106,11 @@ func (ai *AIUser) SendClient(msg *Msg) error {
 
 // for AIAction
 func (ai *AIUser) ActRotate(dir int) {
-	ai.ship.Rotate = dir
+	ai.status.Rotate = dir
 }
 
 func (ai *AIUser) ActMove(dir int) {
-	ai.ship.Move = dir
+	ai.status.Move = dir
 }
 
 func (ai *AIUser) ActShoot() error {
@@ -180,11 +180,11 @@ func NewAIUser() *AIUser {
 		eventch: make(chan *Event, 8),
 	}
 	InitShip(&ai.Ship)
-	ai.ship.X = 480
-	ai.ship.Y = 320
-	ai.ship.Hp = 100
+	ai.status.X = 480
+	ai.status.Y = 320
+	ai.status.Hp = 100
 	InitList(&ai.sceneList, ai)
-	InitList(&ai.statusList, ai)
+	InitList(&ai.stateList, ai)
 	ai.algo = NewAISimapleAlgo()
 	go ai.aiEventRoutine()
 	return ai

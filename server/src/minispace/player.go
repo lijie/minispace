@@ -46,17 +46,17 @@ type ShipStatus struct {
 }
 
 type Ship struct {
-	// Player2
-	ship ShipStatus
+	Player2
+	status ShipStatus
 	// beam manager
 	beamMap int
 	beamList *list.List
 	// which scene we belong to
 	scene *Scene
 	sceneList List
-	statusList List
+	stateList List
 	deadCD float64
-	status int
+	state int
 }
 
 type Rect struct {
@@ -112,11 +112,11 @@ func (b *Beam) Update(delta float64) bool {
 }
 
 func (p *Ship) SetActive() {
-	p.status = kStatusActive
+	p.state = kStateActive
 }
 
 func (p *Ship) SetDead() {
-	p.status = kStatusDead
+	p.state = kStateDead
 }
 
 func (p *Ship) SetScene(s *Scene) {
@@ -124,30 +124,30 @@ func (p *Ship) SetScene(s *Scene) {
 }
 
 func (p *Ship) SetUserId(id int) {
-	p.ship.Id = id
+	p.status.Id = id
 }
 
 func (p *Ship) UserId() int {
-	return p.ship.Id
+	return p.status.Id
 }
 
 func (p *Ship) HpDown(value int) int {
-	p.ship.Hp -= float64(value)
-	if p.ship.Hp < 0 {
-		p.ship.Hp = 0
+	p.status.Hp -= float64(value)
+	if p.status.Hp < 0 {
+		p.status.Hp = 0
 	}
-	return int(p.ship.Hp)
+	return int(p.status.Hp)
 }
 
 func (p *Ship) Status() *ShipStatus {
-	return &p.ship
+	return &p.status
 }
 
 func ShipCheckHit(sender Player, target Player) bool {
 	p := sender.GetShip()
 	t := target.GetShip()
 
-	if p.ship.Id == target.UserId() {
+	if p.status.Id == target.UserId() {
 		return false
 	}
 
@@ -155,11 +155,11 @@ func ShipCheckHit(sender Player, target Player) bool {
 	for b := p.beamList.Front(); b != nil; b = b.Next() {
 		beam = b.Value.(*Beam)
 		// TODO use float64 defalut
-		if !beam.Hit(int(t.ship.X), int(t.ship.Y)) {
+		if !beam.Hit(int(t.status.X), int(t.status.Y)) {
 			continue
 		}
 
-		fmt.Printf("%d hit target %d\n", p.ship.Id, t.ship.Id)
+		fmt.Printf("%d hit target %d\n", p.status.Id, t.status.Id)
 
 		p.beamList.Remove(b)
 		p.beamMap = p.beamMap &^ (1 << uint(beam.id))
@@ -205,8 +205,8 @@ func ShipAddBeam(player Player, beamid int) error {
 	// save beamid and beam
 	ship.beamMap |= (1 << uint(beamid))
 	b := &Beam{
-		ship.ship.X, ship.ship.Y, ship.ship.Angle + 90,
-		(ship.ship.Angle + 90) * math.Pi / 180,
+		ship.status.X, ship.status.Y, ship.status.Angle + 90,
+		(ship.status.Angle + 90) * math.Pi / 180,
 		0, beamid, nil,
 	}
 
@@ -215,7 +215,7 @@ func ShipAddBeam(player Player, beamid int) error {
 	data := &ProtoShootBeam{
 		BeamId: beamid, 
 	}
-	data.ShipStatus = ship.ship
+	data.ShipStatus = ship.status
 	ship.scene.BroadProto(player, true, kCmdShootBeam, "data", data)
 	return nil
 }

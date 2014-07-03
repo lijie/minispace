@@ -30,8 +30,8 @@ const (
 )
 
 const (
-	kStatusActive = 0
-	kStatusDead = 1
+	kStateActive = 0
+	kStateDead = 1
 )
 
 // screen size

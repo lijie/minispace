@@ -103,7 +103,7 @@ func (s *Scene) delPlayer(e *Event) {
 	// s.clientList.Remove(e.sender.pos)
 	ship := e.sender.GetShip()
 	ship.sceneList.RemoveSelf()
-	ship.statusList.RemoveSelf()
+	ship.stateList.RemoveSelf()
 
 	s.BroadProto(nil, true, kCmdUserKick, "id", &id)
 
@@ -225,7 +225,7 @@ func (s *Scene) addai(num int) {
 
 		ship = ai.GetShip()
 
-		s.activeList.PushBack(&ship.statusList)
+		s.activeList.PushBack(&ship.stateList)
 		s.shipList.PushBack(&ship.sceneList)
 
 		s.num++
@@ -261,7 +261,7 @@ func (s *Scene) addPlayer(e *Event) {
 
 	// add to active list
 	ship := e.sender.GetShip()
-	s.activeList.PushBack(&ship.statusList)
+	s.activeList.PushBack(&ship.stateList)
 	s.shipList.PushBack(&ship.sceneList)
 
 	s.num++
@@ -324,10 +324,10 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 		if target.HpDown(20) == 0 {
 			ship = target.GetShip()
 			// remvoe target from active list
-			ship.statusList.RemoveSelf()
+			ship.stateList.RemoveSelf()
 
 			// add target to dead list
-			s.deadList.PushBack(&ship.statusList)
+			s.deadList.PushBack(&ship.stateList)
 			// notify target is dead
 			target.SetDead()
 			s.broadShipDead(target.UserId())
@@ -344,9 +344,9 @@ func (s *Scene) checkDead(p Player, delta float64) {
 	if ship.deadCD > 5000 {
 		// restart
 		ship.deadCD = 0
-		ship.ship.Hp = 100
-		ship.statusList.RemoveSelf()
-		s.activeList.PushBack(&ship.statusList)
+		ship.status.Hp = 100
+		ship.stateList.RemoveSelf()
+		s.activeList.PushBack(&ship.stateList)
 		p.SetActive()
 		ship.scene.BroadProto(p, false, kCmdShipRestart, "data", p.UserId())
 		fmt.Printf("ship %d restart\n", p.UserId())
