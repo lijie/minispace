@@ -460,8 +460,7 @@ var GameLayer = cc.Layer.extend({
     circle:null,
     npclayer:null,
     bglayer:null,
-    border_width:0,
-    border_height:0,
+    radar: null,
 
     init:function () {
 
@@ -509,6 +508,12 @@ var GameLayer = cc.Layer.extend({
         this.bglayer.init();
 	// layer's anchor always 0,0
 	this.bglayer.setPosition(-480, -320);
+
+	// add radio
+	this.radar = cc.Sprite.create(s_radar);
+	this.radar.setScale(0.8);
+	this.addChild(this.radar, 40);
+	this.radar.setPosition(840, 520);
     },
 
     onEnter: function() {
