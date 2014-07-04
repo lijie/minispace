@@ -24,13 +24,6 @@ type AIUser struct {
 	eventch chan *Event
 }
 
-func (ai *AIUser) UserName() string {
-	return ai.name
-}
-
-func (ai *AIUser) Beat() {
-}
-
 func (ai *AIUser) doMove(dt float64) {
 	angle := ai.status.Angle + 90
 	// move
@@ -87,21 +80,27 @@ func (ai *AIUser) updatePosition(delta float64) {
 	ai.doMove(delta)
 }
 
+// for Player
 func (ai *AIUser) Update(delta float64) {
 	if ai.state == kStateActive {
 		ai.algo.Update(ai, delta)
-		ShipUpdateBeam(ai, delta)
 		ai.updatePosition(delta)
 	}
 }
 
-func (ai *AIUser) GetShip() *Ship {
-	return &ai.Ship
-}
-
-func (ai *AIUser) SendClient(msg *Msg) error {
+func (ai *AIUser) SendMsg(msg *Msg) error {
 	ai.msgch <- msg
 	return nil
+}
+
+func (ai *AIUser) Name() string {
+	return ai.name
+}
+
+func (ai *AIUser) Win() {
+}
+
+func (ai *AIUser) Dead() {
 }
 
 // for AIAction
@@ -126,7 +125,7 @@ func (ai *AIUser) ActShoot() error {
 		return nil
 	}
 
-	ShipAddBeam(ai, id)
+	ai.AddBeam(id)
 	return nil
 }
 
@@ -179,12 +178,10 @@ func NewAIUser() *AIUser {
 		msgch: make(chan *Msg, 128),
 		eventch: make(chan *Event, 8),
 	}
-	InitShip(&ai.Ship)
+	InitShip(&ai.Ship, ai)
 	ai.status.X = 480
 	ai.status.Y = 320
 	ai.status.Hp = 100
-	InitList(&ai.sceneList, ai)
-	InitList(&ai.stateList, ai)
 	ai.algo = NewAISimapleAlgo()
 	go ai.aiEventRoutine()
 	return ai

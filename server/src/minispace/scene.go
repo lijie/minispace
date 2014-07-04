@@ -8,7 +8,7 @@ import "fmt"
 type Event struct {
 	cmd int
 	data interface{}
-	sender Player
+	sender *Ship
 	callback func(*Event, error)
 }
 
@@ -67,7 +67,7 @@ func (s *Scene) allocId() (int, error) {
 }
 
 func (s *Scene) doSceneEvent(e *Event) {
-	fmt.Printf("call doSceneEvent")
+	fmt.Printf("call doSceneEvent\n")
 	switch e.cmd {
 	case kEventAddPlayer:
 		s.addPlayer(e)
@@ -76,7 +76,7 @@ func (s *Scene) doSceneEvent(e *Event) {
 	}
 }
 
-func (s *Scene) DelPlayer(u Player) {
+func (s *Scene) DelPlayer(u *Ship) {
 	var lock sync.Mutex
 
 	lock.Lock()
@@ -101,7 +101,7 @@ func (s *Scene) delPlayer(e *Event) {
 
 	id := e.sender.UserId()
 	// s.clientList.Remove(e.sender.pos)
-	ship := e.sender.GetShip()
+	ship := e.sender
 	ship.sceneList.RemoveSelf()
 	ship.stateList.RemoveSelf()
 
@@ -115,7 +115,7 @@ func (s *Scene) delPlayer(e *Event) {
 	s.num--
 }
 
-func (s *Scene) AddPlayer(u Player) (chan *Packet, error) {
+func (s *Scene) AddPlayer(u *Ship) (chan *Packet, error) {
 	var lock sync.Mutex
 	var err error
 
@@ -144,31 +144,31 @@ func (s *Scene) AddPlayer(u Player) (chan *Packet, error) {
 	return s.cli_chan, nil
 }
 
-func (s *Scene) notifyProto(player Player, cmd float64, field string, data interface{}) {
+func (s *Scene) notifyProto(ship *Ship, cmd float64, field string, data interface{}) {
 	msg := NewMsg()
 	msg.Cmd = cmd
 	msg.Body[field] = data
-	player.SendClient(msg)
+	ship.SendMsg(msg)
 }
 
-func (s *Scene) BroadProto(sender Player, exclusion bool, cmd float64, field string, data interface{}) {
-	var u Player
+func (s *Scene) BroadProto(sender *Ship, exclusion bool, cmd float64, field string, data interface{}) {
+	var u *Ship
 
 	msg := NewMsg()
 	msg.Cmd = cmd
 	msg.Body[field] = data
 
 	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
-		u = p.Host().(Player)
+		u = p.Host().(*Ship)
 		if u == sender && exclusion {
 			continue
 		}
 
-		u.SendClient(msg)
+		u.SendMsg(msg)
 	}
 }
 
-func (s *Scene) broadStopBeam(u Player, beamid int, hit int) {
+func (s *Scene) broadStopBeam(u *Ship, beamid int, hit int) {
 	data := &ProtoStopBeam{
 		Id: u.UserId(),
 		BeamId: beamid,
@@ -178,17 +178,17 @@ func (s *Scene) broadStopBeam(u Player, beamid int, hit int) {
 	s.BroadProto(u, false, kCmdStopBeam, "data", data)
 }
 
-func (s *Scene) notifyAddUser(u Player) {
-	var t Player
+func (s *Scene) notifyAddUser(u *Ship) {
+	var t *Ship
 	var n []*ProtoAddUser
 	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
-		t = p.Host().(Player)
+		t = p.Host().(*Ship)
 		if t == u {
 			continue
 		}
 		data := &ProtoAddUser{
 			Id: t.UserId(),
-			Name: t.UserName(),
+			Name: t.Name(),
 		}
 		n = append(n, data)
 	}
@@ -196,11 +196,11 @@ func (s *Scene) notifyAddUser(u Player) {
 	s.notifyProto(u, kCmdAddUser, "users", n)
 }
 
-func (s *Scene) broadAddUser(u Player) {
+func (s *Scene) broadAddUser(u *Ship) {
 	var n []*ProtoAddUser
 	data := &ProtoAddUser{
 		Id: u.UserId(),
-		Name: u.UserName(),
+		Name: u.Name(),
 	}
 	n = append(n, data)
 
@@ -223,7 +223,7 @@ func (s *Scene) addai(num int) {
 		ai.SetScene(s)
 		ai.SetUserId(id)
 
-		ship = ai.GetShip()
+		ship = &ai.Ship
 
 		s.activeList.PushBack(&ship.stateList)
 		s.shipList.PushBack(&ship.sceneList)
@@ -232,12 +232,12 @@ func (s *Scene) addai(num int) {
 		fmt.Printf("add ai %d\n", id)
 
 		// tell all others I'm here
-		s.broadAddUser(ai)
+		s.broadAddUser(ship)
 	}
 }
 
 func (s *Scene) addPlayer(e *Event) {
-	fmt.Printf("call addPlayer")
+	fmt.Printf("call addPlayer\n")
 	e.sender.SetScene(s)
 
 	if s.num >= 16 {
@@ -246,6 +246,7 @@ func (s *Scene) addPlayer(e *Event) {
 		return
 	}
 
+	fmt.Printf("call addPlayer 1\n")
 	// each user have an unique id
 	id, err := s.allocId()
 	if err != nil {
@@ -254,13 +255,13 @@ func (s *Scene) addPlayer(e *Event) {
 		return
 	}
 
-	fmt.Printf("alloc id %d for user %s\n", id, e.sender.UserName())
+	fmt.Printf("alloc id %d for user %s\n", id, e.sender.Name())
 	// add ok
 	e.sender.SetUserId(id)
 	// e.sender.pos = s.clientList.PushBack(e.sender)
 
 	// add to active list
-	ship := e.sender.GetShip()
+	ship := e.sender
 	s.activeList.PushBack(&ship.stateList)
 	s.shipList.PushBack(&ship.sceneList)
 
@@ -289,11 +290,11 @@ func (s *Scene) broadShipStatus() {
 		return
 	}
 
-	var c Player
+	var c *Ship
 	var n []*ShipStatus
 
 	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
-		c = p.Host().(Player)
+		c = p.Host().(*Ship)
 		n = append(n, c.Status())
 	}
 
@@ -303,16 +304,15 @@ func (s *Scene) broadShipStatus() {
 func (s *Scene) procTimeout() {
 }
 
-func (s *Scene) checkHitAll(shooter Player, l *List) {
+func (s *Scene) checkHitAll(shooter *Ship, l *List) {
 	var tmp *List
 	var hit bool
-	var target Player
-	var ship *Ship
+	var target *Ship
 
 	p := l.Next()
 	for p != l {
 		tmp = p.Next()
-		target = p.Host().(Player)
+		target = p.Host().(*Ship)
 		p = tmp
 
 		hit = ShipCheckHit(shooter, target)
@@ -322,23 +322,21 @@ func (s *Scene) checkHitAll(shooter Player, l *List) {
 
 		// hit
 		if target.HpDown(20) == 0 {
-			ship = target.GetShip()
 			// remvoe target from active list
-			ship.stateList.RemoveSelf()
+			target.stateList.RemoveSelf()
 
 			// add target to dead list
-			s.deadList.PushBack(&ship.stateList)
+			s.deadList.PushBack(&target.stateList)
 			// notify target is dead
-			target.SetDead()
+			target.Dead()
 			s.broadShipDead(target.UserId())
 		}
 		// notify shooter
-		shooter.Beat()
+		shooter.Win()
 	}
 }
 
-func (s *Scene) checkDead(p Player, delta float64) {
-	ship := p.GetShip()
+func (s *Scene) checkDead(ship *Ship, delta float64) {
 	ship.deadCD += delta
 
 	if ship.deadCD > 5000 {
@@ -347,9 +345,9 @@ func (s *Scene) checkDead(p Player, delta float64) {
 		ship.status.Hp = 100
 		ship.stateList.RemoveSelf()
 		s.activeList.PushBack(&ship.stateList)
-		p.SetActive()
-		ship.scene.BroadProto(p, false, kCmdShipRestart, "data", p.UserId())
-		fmt.Printf("ship %d restart\n", p.UserId())
+		ship.SetActive()
+		ship.scene.BroadProto(ship, false, kCmdShipRestart, "data", ship.status.Id)
+		fmt.Printf("ship %d restart\n", ship.status.Id)
 	}
 }
 
@@ -359,21 +357,21 @@ func (s *Scene) runFrame(delta float64) {
 
 	// update for each user
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		p.Host().(Player).Update(delta)
+		p.Host().(*Ship).Update(delta)
 	}
 
 	// check hit for each ship
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
-		s.checkHitAll(p.Host().(Player), &s.activeList)
+		s.checkHitAll(p.Host().(*Ship), &s.activeList)
 	}
 
 	// update dead list
 	var tmp *List
-	var target Player
+	var target *Ship
 	p := s.deadList.Next()
 	for p != &s.deadList {
 		tmp = p.Next()
-		target = p.Host().(Player)
+		target = p.Host().(*Ship)
 		p = tmp
 
 		s.checkDead(target, delta)

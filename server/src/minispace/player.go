@@ -4,26 +4,10 @@ import "fmt"
 import "math"
 import "container/list"
 
-// too complicated....
-type Player interface {
-	SendClient(msg *Msg) error
-	SetUserId(id int)
-	SetScene(s *Scene)
-	UserId() int
-	UserName() string
-	Status() *ShipStatus
-	Update(delta float64)
-	HpDown(value int) int
-	SetDead()
-	SetActive()
-	Beat()
-	// TODO: any better idea?
-	GetShip() *Ship
-}
-
 // better Player interface
 type Player2 interface {
 	SendMsg(msg *Msg) error
+	Update(dt float64)
 	Name() string
 	Dead()
 	Win()
@@ -111,12 +95,30 @@ func (b *Beam) Update(delta float64) bool {
 	return true
 }
 
+func (ship *Ship) SendMsg(msg *Msg) error {
+	return ship.Player2.SendMsg(msg)
+}
+
+func (ship *Ship) Update(dt float64) {
+	ship.updateBeam(dt)
+	ship.Player2.Update(dt)
+}
+
+func (ship *Ship) Name() string {
+	return ship.Player2.Name()
+}
+
 func (p *Ship) SetActive() {
 	p.state = kStateActive
 }
 
-func (p *Ship) SetDead() {
+func (p *Ship) Dead() {
 	p.state = kStateDead
+	p.Player2.Dead()
+}
+
+func (p *Ship) Win() {
+	p.Player2.Win()
 }
 
 func (p *Ship) SetScene(s *Scene) {
@@ -143,27 +145,24 @@ func (p *Ship) Status() *ShipStatus {
 	return &p.status
 }
 
-func ShipCheckHit(sender Player, target Player) bool {
-	p := sender.GetShip()
-	t := target.GetShip()
-
-	if p.status.Id == target.UserId() {
+func ShipCheckHit(sender *Ship, target *Ship) bool {
+	if sender.status.Id == target.status.Id {
 		return false
 	}
 
 	var beam *Beam
-	for b := p.beamList.Front(); b != nil; b = b.Next() {
+	for b := sender.beamList.Front(); b != nil; b = b.Next() {
 		beam = b.Value.(*Beam)
 		// TODO use float64 defalut
-		if !beam.Hit(int(t.status.X), int(t.status.Y)) {
+		if !beam.Hit(int(target.status.X), int(target.status.Y)) {
 			continue
 		}
 
-		fmt.Printf("%d hit target %d\n", p.status.Id, t.status.Id)
+		fmt.Printf("%d hit target %d\n", sender.status.Id, target.status.Id)
 
-		p.beamList.Remove(b)
-		p.beamMap = p.beamMap &^ (1 << uint(beam.id))
-		p.scene.broadStopBeam(sender, int(beam.id), 1)
+		sender.beamList.Remove(b)
+		sender.beamMap = sender.beamMap &^ (1 << uint(beam.id))
+		sender.scene.broadStopBeam(sender, int(beam.id), 1)
 
 		// BUG:
 		return true
@@ -172,29 +171,25 @@ func ShipCheckHit(sender Player, target Player) bool {
 	return false
 }
 
-func ShipUpdateBeam(player Player, dt float64) {
-	p := player.GetShip()
-
+func (ship *Ship) updateBeam(dt float64) {
 	var tmp *list.Element
 	var beam *Beam
 
-	for b := p.beamList.Front(); b != nil; {
+	for b := ship.beamList.Front(); b != nil; {
 		beam = b.Value.(*Beam)
 		tmp = b.Next()
 
 		if !beam.Update(dt) {
-			p.beamList.Remove(b)
-			p.beamMap = p.beamMap &^ (1 << uint(beam.id))
-			p.scene.broadStopBeam(player, int(beam.id), 0)
+			ship.beamList.Remove(b)
+			ship.beamMap = ship.beamMap &^ (1 << uint(beam.id))
+			ship.scene.broadStopBeam(ship, int(beam.id), 0)
 		}
 
 		b = tmp
 	}
 }
 
-func ShipAddBeam(player Player, beamid int) error {
-	ship := player.GetShip()
-
+func (ship *Ship) AddBeam(beamid int) error {
 	// check beamid is valid
 	if ((1 << uint(beamid)) & ship.beamMap) != 0 {
 		// error
@@ -216,10 +211,13 @@ func ShipAddBeam(player Player, beamid int) error {
 		BeamId: beamid, 
 	}
 	data.ShipStatus = ship.status
-	ship.scene.BroadProto(player, true, kCmdShootBeam, "data", data)
+	ship.scene.BroadProto(ship, true, kCmdShootBeam, "data", data)
 	return nil
 }
 
-func InitShip(p *Ship) {
-	p.beamList = list.New()
+func InitShip(ship *Ship, p Player2) {
+	ship.beamList = list.New()
+	InitList(&ship.sceneList, ship)
+	InitList(&ship.stateList, ship)
+	ship.Player2 = p
 }

@@ -40,9 +40,10 @@ func (u *User) UserEventRoutine() {
 		case event = <- u.eventch:
 			// be kicked
 			if event.cmd == kEventKickClient {
-				fmt.Printf("%s be kicked by %s\n", u.UserName(), event.sender.UserName())
+				fmt.Printf("%s be kicked by %s\n",
+					u.userdb.Name, event.sender.Name())
 				// del current player from scene
-				u.scene.DelPlayer(u)
+				u.scene.DelPlayer(&u.Ship)
 				u.enable = false
 				u.Logout()
 				if event.callback != nil {
@@ -54,7 +55,7 @@ func (u *User) UserEventRoutine() {
 		}
 	}
 
-	fmt.Printf("user %s end event loop\n", u.UserName())
+	fmt.Printf("user %s end event loop\n", u.Name())
 }
 
 func (u *User) KickName(name string) {
@@ -67,7 +68,7 @@ func (u *User) KickName(name string) {
 func (u *User) KickPlayer(other *User) {
 	cmd := &Event{
 		cmd: kEventKickClient,
-		sender: u,
+		sender: &u.Ship,
 	}
 
 	var lock sync.Mutex
@@ -90,38 +91,6 @@ func (u *User) SetErrCode(code int) {
 
 func (u *User) MarkDirty() {
 	u.dirty = true
-}
-
-func (u *User) Update(delta float64) {
-//	var tmp *list.Element
-//	var beam *Beam
-//
-//	for b := u.beamList.Front(); b != nil; {
-//		beam = b.Value.(*Beam)
-//		tmp = b.Next()
-//
-//		if !beam.Update(delta) {
-//			u.beamList.Remove(b)
-//			u.beamMap = u.beamMap &^ (1 << uint(beam.id))
-//			u.scene.broadStopBeam(u, int(beam.id), 0)
-//		}
-//
-//		b = tmp
-//	}
-	ShipUpdateBeam(u, delta)
-}
-
-func (u *User) GetShip() *Ship {
-	return &u.Ship
-}
-
-func (u *User) Beat() {
-	u.userdb.Win++
-}
-
-func (u *User) SetDead() {
-	u.Ship.SetDead()
-	u.userdb.Lose++
 }
 
 func (u *User) Logout() {
@@ -222,7 +191,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	fmt.Printf("try add %s to scene\n", user.userdb.Name)
 
 	// ok, login succ, add to a scene
-	_, err = CurrentScene().AddPlayer(user)
+	_, err = CurrentScene().AddPlayer(&user.Ship)
 	if err != nil {
 		fmt.Printf("add client err")
 		return PROC_KICK
@@ -248,7 +217,7 @@ func procUserAction(user *User, msg *Msg) int {
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
 		beamid := int(msg.Body["beamid"].(float64))
-		err := ShipAddBeam(user, beamid)
+		err := user.AddBeam(beamid)
 		if err != nil {
 			return PROC_ERR
 		}
@@ -263,7 +232,7 @@ func procShipRestart(user *User, msg *Msg) int {
 
 // for Player interface
 
-func (user *User) SendClient(msg *Msg) error {
+func (user *User) SendMsg(msg *Msg) error {
 	select {
 	case user.msgch <- msg:
 		break
@@ -274,17 +243,26 @@ func (user *User) SendClient(msg *Msg) error {
 	return nil
 }
 
-func (user *User) UserName() string {
+func (user *User) Name() string {
 	return user.userdb.Name
 }
 
+func (u *User) Update(delta float64) {
+}
+
+func (u *User) Dead() {
+	u.userdb.Lose++
+}
+
+func (u *User) Win() {
+	u.userdb.Win++
+}
+
 func InitUser(u *User, c *Client) {
-	InitShip(&u.Ship)
+	InitShip(&u.Ship, u)
 	u.enable = true
 	u.conn = c
 	u.status.Hp = 100
 	u.eventch = make(chan *Event, 8)
 	u.msgch = make(chan *Msg, 64)
-	InitList(&u.sceneList, u)
-	InitList(&u.stateList, u)
 }
