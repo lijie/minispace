@@ -24,6 +24,8 @@ SCREEN_HEIGHT = 640
 MAP_WIDTH = SCREEN_WIDTH * 2
 MAP_HEIGHT = SCREEN_HEIGHT * 2
 
+SHIP_SPEED = 160
+
 var coord_x = 0;
 var coord_y = 0;
 
@@ -81,6 +83,16 @@ var Ship = cc.Class.extend({
         label.setAnchorPoint(0, 1);
 	this.sprite.addChild(label);
 	this.label = label;
+
+	// set rect for test
+	var draw = cc.DrawNode.create();
+	if (draw) {
+	    this.sprite.addChild(draw, 10);
+            var vertices = [cc.p(0, 0), cc.p(0, 0), cc.p(100, 0), cc.p(100, 100), cc.p(0, 100)];
+            // draw.drawPoly(vertices, null, 5, cc.c4f(1, 1, 0, 1));
+            draw.drawPoly(vertices, cc.c4f(0, 1, 1, 0.2), 2, cc.c4f(1, 0, 1, 1));
+            // draw.drawRect(cc.p(0, 0), cc.p(50, 50), null, 2, cc.c4f(1, 0, 1, 1));
+	}
     },
 
     setLayer: function(layer) {
@@ -138,7 +150,7 @@ var Ship = cc.Class.extend({
 	angle = this.sprite.getRotation() + 90;
 	if (angle >= 360)
 	    angle = angle - 360;
-	r = 80 * dt;
+	r = SHIP_SPEED * dt;
 	x = r * Math.sin(angle / 180 * Math.PI);
 	y = r * Math.cos(angle / 180 * Math.PI);
 
@@ -162,7 +174,7 @@ var Ship = cc.Class.extend({
 	angle = this.sprite.getRotation() + 90;
 	if (angle >= 360)
 	    angle = angle - 360;
-	r = 80 * dt;
+	r = SHIP_SPEED * dt;
 	x = r * Math.sin(angle / 180 * Math.PI);
 	y = r * Math.cos(angle / 180 * Math.PI);
 
@@ -385,7 +397,7 @@ Ship.moveDistance = function(rotate, dt) {
     angle = rotate + 90;
     if (angle >= 360)
 	angle = angle - 360;
-    r = 80 * dt;
+    r = SHIP_SPEED * dt;
     x = r * Math.sin(angle / 180 * Math.PI);
     y = r * Math.cos(angle / 180 * Math.PI);
     return {x:x, y:y};
@@ -447,6 +459,16 @@ var BgLayer = cc.Layer.extend({
 	for (var i = 0; i < 10; i++) {
 	    p = cc.Sprite.createWithTexture(batch.getTexture());
 	    p.setPosition(i * 256, 1024);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 1024 + 256);
+	    batch.addChild(p);
+	}
+	for (var i = 0; i < 10; i++) {
+	    p = cc.Sprite.createWithTexture(batch.getTexture());
+	    p.setPosition(i * 256, 1024 + 256 * 2);
 	    batch.addChild(p);
 	}
 	this.addChild(batch, 0);
@@ -653,6 +675,9 @@ var GameLayer = cc.Layer.extend({
     },
 
     moveSelfForward: function(dt, dir) {
+	if (myShip.dead == true)
+	    return;
+
 	rt = myShip.sprite.getRotation();
 	if (dir == 0)
 	    rt = rt + 180
@@ -670,15 +695,30 @@ var GameLayer = cc.Layer.extend({
 	// if ship in border of screen, move npclayer
 	x = this.npclayer.getPositionX() - dis.x;
 	y = this.npclayer.getPositionY() - dis.y;
-	this.npclayer.setPosition(x, y);
+
+	if (x > 0)
+	    x = 0
+	else if (x < -480 * 3)
+	    x = -480 * 3
+
+	if (y > 0)
+	    y = 0
+	else if (y < -320 * 3)
+	    y = -320 * 3
 
 	// update coord
 	coord_x = coord_x + dis.x;
+	if (coord_x < 0)
+	    coord_x = 0
 	coord_y = coord_y + dis.y;
+	if (coord_y < 0)
+	    coord_y = 0
+
+	this.npclayer.setPosition(x, y);
 
 	// move bglayer
-	x = this.bglayer.getPositionX() - dis.x / 2;
-	y = this.bglayer.getPositionY() - dis.y / 2;
+	// x = this.bglayer.getPositionX() - dis.x / 2;
+	// y = this.bglayer.getPositionY() - dis.y / 2;
 	this.bglayer.setPosition(x, y);
     },
 

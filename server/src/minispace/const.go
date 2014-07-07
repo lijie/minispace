@@ -42,6 +42,10 @@ const (
 	kMapHeight = kScreenHeight * 2
 )
 
+const (
+	kShipSpeed = 160
+)
+
 // error
 var ErrReadPacket = errors.New("Read packet from client error")
 var ErrSceneFull = errors.New("Scene is full")

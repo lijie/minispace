@@ -27,7 +27,7 @@ type AIUser struct {
 func (ai *AIUser) doMove(dt float64) {
 	angle := ai.status.Angle + 90
 	// move
-	r := 80 * (dt / 1000);
+	r := kShipSpeed * (dt / 1000);
 	x := r * math.Sin(angle * math.Pi / 180);
 	y := r * math.Cos(angle * math.Pi / 180);
 
