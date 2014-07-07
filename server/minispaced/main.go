@@ -3,7 +3,7 @@ package main
 import "log"
 import "code.google.com/p/go.net/websocket"
 import "net/http"
-import "minispace"
+import "github.com/lijie/minispace/server/minispace"
 import "runtime"
 //import "code.google.com/p/log4go"
 
