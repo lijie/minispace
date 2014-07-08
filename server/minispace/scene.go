@@ -378,12 +378,16 @@ func (s *Scene) runFrame(delta float64) {
 	}
 }
 
+const (
+	SceneSleepTime = 20
+)
+
 func (s *Scene) Run() {
 	timer_ch := make(chan int, 1)
 
 	go func() {
 		for s.enable {
-			<-time.After(50 * time.Millisecond)
+			<-time.After(SceneSleepTime * time.Millisecond)
 			timer_ch <- 1
 		}
 	}()
@@ -396,7 +400,7 @@ func (s *Scene) Run() {
 		case p = <-s.cli_chan:
 			p.client.ProcMsg(&p.Msg)
 		case _ = <- timer_ch:
-			s.runFrame(50.0)
+			s.runFrame(float64(SceneSleepTime))
 		case e = <- s.cmd_chan:
 			s.doSceneEvent(e)
 		}

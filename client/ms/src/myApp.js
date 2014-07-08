@@ -46,6 +46,8 @@ var Ship = cc.Class.extend({
     dead:false,
     emitter:null,
     isself:false,
+    radar:null,
+    radarpoint:null,
 
     ctor:function() {
     },
@@ -87,12 +89,31 @@ var Ship = cc.Class.extend({
 	// set rect for test
 	var draw = cc.DrawNode.create();
 	if (draw) {
+	    size = this.sprite.getContentSize();
+	    // start = cc.p(size.width / 4, size.height / 4);
+	    // h = size.height / 2 + start.y;
+	    // w = size.width / 2 + start.x;
+	    start = cc.p(size.width / 2 - 25, size.height / 2 - 25);
+	    h = 50 + start.y;
+	    w = 50 + start.x;
 	    this.sprite.addChild(draw, 10);
-            var vertices = [cc.p(0, 0), cc.p(0, 0), cc.p(100, 0), cc.p(100, 100), cc.p(0, 100)];
-            // draw.drawPoly(vertices, null, 5, cc.c4f(1, 1, 0, 1));
+            var vertices = [start, start, cc.p(w, start.y), cc.p(w, h), cc.p(start.x, h)];
             draw.drawPoly(vertices, cc.c4f(0, 1, 1, 0.2), 2, cc.c4f(1, 0, 1, 1));
-            // draw.drawRect(cc.p(0, 0), cc.p(50, 50), null, 2, cc.c4f(1, 0, 1, 1));
 	}
+    },
+
+    setRadar: function(radar) {
+	this.radar = radar;
+	    var draw2 = cc.DrawNode.create();
+	    if (draw2) {
+		if (this.isself) {
+		    draw2.drawDot(cc.p(0,0), 4, cc.c4f(1, 0, 1, 1));
+		} else {
+		    draw2.drawDot(cc.p(0,0), 4, cc.c4f(1, 1, 1, 1));
+		}
+		this.radar.addChild(draw2, 10);
+		this.radarpoint = draw2;
+	    }
     },
 
     setLayer: function(layer) {
@@ -105,13 +126,21 @@ var Ship = cc.Class.extend({
 	this.angle = angle;
     },
 
+    setPosForce: function(x, y, angle) {
+	this.setPos(x, y, angle);
+	this.synstep = 10;
+	this.updatePos();
+    },
+
     synstep: 0,
     updatePos:function() {
-	if (this.synstep % 10 == 0) {
+	if (this.synstep == 10) {
 	    this.sprite.setPosition(this.x, this.y);
 	    this.sprite.setRotation(this.angle);
+	    this.synstep = 0;
+	} else {
+	    this.synstep++;
 	}
-	this.synstep++;
     },
 
     setMove:function(m, r) {
@@ -146,6 +175,12 @@ var Ship = cc.Class.extend({
     moveSelfForward: function(dt) {
     },
 
+    moveRadar: function(x, y) {
+	x = x / 8;
+	y = y / 8;
+	this.radarpoint.setPosition(x, y);
+    },
+
     moveForward: function(dt) {
 	angle = this.sprite.getRotation() + 90;
 	if (angle >= 360)
@@ -168,6 +203,7 @@ var Ship = cc.Class.extend({
 	    y = 0
 
 	this.sprite.setPosition(x, y);
+	this.moveRadar(x, y);
     },
 
     moveBackward: function(dt) {
@@ -192,6 +228,7 @@ var Ship = cc.Class.extend({
 	    y = 0
 
 	this.sprite.setPosition(x, y);
+	this.moveRadar(x, y);
     },
 
     moveLRotate: function(dt) {
@@ -571,6 +608,8 @@ var GameLayer = cc.Layer.extend({
 	myShip.create(id, ME.name, this, size.width / 2, size.height / 2);
 	coord_x = 480;
 	coord_y = 320;
+	myShip.isself = true;
+	myShip.setRadar(this.radar);
     },
 
     createOtherShip: function(id) {
@@ -580,6 +619,7 @@ var GameLayer = cc.Layer.extend({
 	    name = THEM[id].name
 	// otherShips[id].create(id, name, this, size.width / 2, size.height / 2);
 	otherShips[id].create(id, name, this.npclayer, size.width / 2, size.height / 2);
+	otherShips[id].setRadar(this.radar);
     },
 
     removeOtherShip: function(id) {
@@ -688,6 +728,7 @@ var GameLayer = cc.Layer.extend({
 	y = myShip.sprite.getPositionY() + dis.y;
 	if (!Ship.isBorder(x, y)) {
 	    myShip.sprite.setPosition(x, y);
+	    myShip.moveRadar(x + coord_x, y + coord_y);
 	    return;
 	}
 
@@ -720,6 +761,9 @@ var GameLayer = cc.Layer.extend({
 	// x = this.bglayer.getPositionX() - dis.x / 2;
 	// y = this.bglayer.getPositionY() - dis.y / 2;
 	this.bglayer.setPosition(x, y);
+
+	// move radar
+	myShip.moveRadar(x + coord_x, y + coord_y);
     },
 
     moveShips: function(dt) {
@@ -797,7 +841,7 @@ var GameLayer = cc.Layer.extend({
 	    console.log("create other ship", s);
 	    myShip.parent.createOtherShip(s.id);
 	}
-	otherShips[s.id].setPos(s.x, s.y, s.angle);
+	otherShips[s.id].setPosForce(s.x, s.y, s.angle);
 	otherShips[s.id].setMove(s.move, s.rotate);
 
 	o.shootBeam(false, s.beamid);
@@ -875,8 +919,8 @@ var GameScene = cc.Scene.extend({
     onEnter:function () {
         this._super();
 	var layer = new GameLayer();
-        this.addChild(layer);
         layer.init();
+        this.addChild(layer);
 	myShip.setLayer(layer);
 	myShip.isself = true;
     }
