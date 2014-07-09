@@ -275,7 +275,7 @@ func (s *Scene) addPlayer(e *Event) {
 	// show enemies
 	s.notifyAddUser(e.sender)
 
-	if s.num < 8 {
+	if miniConfig.EnableAI && s.num < 8 {
 		s.addai(8 - s.num)
 	}
 }

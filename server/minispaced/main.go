@@ -5,6 +5,8 @@ import "code.google.com/p/go.net/websocket"
 import "net/http"
 import "github.com/lijie/minispace/server/minispace"
 import "runtime"
+import "flag"
+import "fmt"
 //import "code.google.com/p/log4go"
 
 //var mainlog log4go.Logger
@@ -42,7 +44,18 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	log.Printf("Starting minispace...");
-	err := minispace.Init()
+
+	nodb := flag.Bool("nodb", false, "running without db")
+	noai := flag.Bool("noai", false, "running without AI")
+	flag.Parse()
+
+	config := minispace.NewMiniConfig()
+	config.EnableDB = !*nodb
+	config.EnableAI = !*noai
+	fmt.Printf("enable db %v\n", config.EnableDB)
+	fmt.Printf("enable ai %v\n", config.EnableAI)
+
+	err := minispace.Init(config)
 	if err != nil {
 		log.Printf("minispace init failed\n")
 		return

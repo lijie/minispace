@@ -123,6 +123,54 @@ func procUserUpdate(user *User, msg *Msg) int {
 	return PROC_OK
 }
 
+func loadUser(user *User, userid string, password string) int {
+	if miniConfig.EnableDB == false {
+		return PROC_OK
+	}
+
+	newbie := false
+	fmt.Printf("start load db\n")
+	err := SharedDB().SyncLoad(userid, &user.userdb)
+	if err == ErrUserNotFound {
+		// new user
+		newbie = true
+	} else if err != nil {
+		user.SetErrCode(ErrCodeDBError)
+		return PROC_ERR
+	}
+	fmt.Printf("load db done\n")
+
+	now := time.Now()
+	if !newbie {
+		// check password
+		fmt.Printf("registed user %#v\n", user.userdb)
+		user.userdb.LoginTime = now.Unix()
+		user.MarkDirty()
+
+		// TODO: use md5 at least...
+		if password != user.userdb.Pass {
+			fmt.Printf("user %s password error\n", user.userdb.Name)
+			return PROC_ERR
+		}
+	} else {
+		user.userdb.Name = userid
+		user.userdb.Pass = password
+		user.userdb.RegTime = now.Unix()
+		user.userdb.LoginTime = now.Unix()
+		fmt.Printf("create new user %#v\n", user.userdb)
+
+		// flush to db
+		err = SharedDB().SyncSave(userid, &user.userdb)
+		if err != nil {
+			fmt.Printf("User %s save db failed\n", user.userdb.Name)
+			user.SetErrCode(ErrCodeDBError)
+			return PROC_ERR
+		}
+	}
+
+	return PROC_OK
+}
+
 func procUserLogin(user *User, msg *Msg) int {
 	if user.login {
 		// repeat login request is error
@@ -143,44 +191,9 @@ func procUserLogin(user *User, msg *Msg) int {
 		return PROC_ERR
 	}
 
-	newbie := false
-	fmt.Printf("start load db\n")
-	err := SharedDB().SyncLoad(msg.Userid, &user.userdb)
-	if err == ErrUserNotFound {
-		// new user
-		newbie = true
-	} else if err != nil {
-		user.SetErrCode(ErrCodeDBError)
-		return PROC_ERR
-	}
-	fmt.Printf("load db done\n")
-
-	now := time.Now()
-	if !newbie {
-		// check password
-		fmt.Printf("registed user %#v\n", user.userdb)
-		user.userdb.LoginTime = now.Unix()
-		user.MarkDirty()
-
-		// TODO: use md5 at least...
-		if password.(string) != user.userdb.Pass {
-			fmt.Printf("user %s password error\n", user.userdb.Name)
-			return PROC_ERR
-		}
-	} else {
-		user.userdb.Name = msg.Userid
-		user.userdb.Pass = password.(string)
-		user.userdb.RegTime = now.Unix()
-		user.userdb.LoginTime = now.Unix()
-		fmt.Printf("create new user %#v\n", user.userdb)
-
-		// flush to db
-		err = SharedDB().SyncSave(msg.Userid, &user.userdb)
-		if err != nil {
-			fmt.Printf("User %s save db failed\n", user.userdb.Name)
-			user.SetErrCode(ErrCodeDBError)
-			return PROC_ERR
-		}
+	ret := loadUser(user, msg.Userid, password.(string))
+	if ret != PROC_OK {
+		return ret
 	}
 
 	if InsertOnline(msg.Userid, user) != nil {
@@ -188,10 +201,10 @@ func procUserLogin(user *User, msg *Msg) int {
 	}
 
 	user.login = true
-	fmt.Printf("try add %s to scene\n", user.userdb.Name)
+	fmt.Printf("try add %s to scene\n", msg.Userid)
 
 	// ok, login succ, add to a scene
-	_, err = CurrentScene().AddPlayer(&user.Ship)
+	_, err := CurrentScene().AddPlayer(&user.Ship)
 	if err != nil {
 		fmt.Printf("add client err")
 		return PROC_KICK
