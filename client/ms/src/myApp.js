@@ -25,6 +25,7 @@ MAP_WIDTH = SCREEN_WIDTH * 2
 MAP_HEIGHT = SCREEN_HEIGHT * 2
 
 SHIP_SPEED = 160
+RADAR_SCALE = 1
 
 var coord_x = 0;
 var coord_y = 0;
@@ -176,8 +177,8 @@ var Ship = cc.Class.extend({
     },
 
     moveRadar: function(x, y) {
-	x = x / 8;
-	y = y / 8;
+	x = x * RADAR_SCALE;
+	y = y * RADAR_SCALE;
 	this.radarpoint.setPosition(x, y);
     },
 
@@ -570,9 +571,14 @@ var GameLayer = cc.Layer.extend({
 
 	// add radio
 	this.radar = cc.Sprite.create(s_radar);
-	this.radar.setScale(0.8);
+	this.radar.setScale(1);
 	this.addChild(this.radar, 40);
 	this.radar.setPosition(840, 520);
+
+	size = this.radar.getContentSize();
+	RADAR_SCALE = size.width / MAP_WIDTH;
+	console.log("radar size", size);
+	console.log("radar scale", RADAR_SCALE);
     },
 
     onEnter: function() {
@@ -662,6 +668,7 @@ var GameLayer = cc.Layer.extend({
 	}
 	if (key == 77) {
 	    console.log("ship xy", myShip.sprite.getPosition());
+	    console.log("coord xy", coord_x, coord_y);
 	    console.log("npclayer xy", this.npclayer.getPosition(), this.npclayer.convertToWorldSpace(cc.p(0,0)));
 	}
     },
@@ -726,6 +733,7 @@ var GameLayer = cc.Layer.extend({
 	// if ship in the middle of screen, move ship
 	x = myShip.sprite.getPositionX() + dis.x;
 	y = myShip.sprite.getPositionY() + dis.y;
+
 	if (!Ship.isBorder(x, y)) {
 	    myShip.sprite.setPosition(x, y);
 	    myShip.moveRadar(x + coord_x, y + coord_y);
@@ -739,21 +747,26 @@ var GameLayer = cc.Layer.extend({
 
 	if (x > 0)
 	    x = 0
-	else if (x < -480 * 3)
-	    x = -480 * 3
+	else if (x < -960)
+	    x = -960
 
 	if (y > 0)
 	    y = 0
-	else if (y < -320 * 3)
-	    y = -320 * 3
+	else if (y < -640)
+	    y = -640
 
 	// update coord
 	coord_x = coord_x + dis.x;
 	if (coord_x < 0)
 	    coord_x = 0
+	else if (coord_x > 960)
+	    coord_x = 960
+
 	coord_y = coord_y + dis.y;
 	if (coord_y < 0)
 	    coord_y = 0
+	else if (coord_y > 640)
+	    coord_y = 640
 
 	this.npclayer.setPosition(x, y);
 
@@ -763,7 +776,8 @@ var GameLayer = cc.Layer.extend({
 	this.bglayer.setPosition(x, y);
 
 	// move radar
-	myShip.moveRadar(x + coord_x, y + coord_y);
+	myShip.moveRadar(myShip.sprite.getPositionX() + coord_x,
+			 myShip.sprite.getPositionY() + coord_y);
     },
 
     moveShips: function(dt) {

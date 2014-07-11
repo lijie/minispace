@@ -125,6 +125,7 @@ func procUserUpdate(user *User, msg *Msg) int {
 
 func loadUser(user *User, userid string, password string) int {
 	if miniConfig.EnableDB == false {
+		user.userdb.Name = userid
 		return PROC_OK
 	}
 
