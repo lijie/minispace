@@ -16,20 +16,20 @@ type AIAlgo interface {
 
 type AIUser struct {
 	Ship
-	name string
-	enable bool
-	algo AIAlgo
+	name    string
+	enable  bool
+	algo    AIAlgo
 	shipmap map[int]ShipStatus
-	msgch chan *Msg
+	msgch   chan *Msg
 	eventch chan *Event
 }
 
 func (ai *AIUser) doMove(dt float64) {
 	angle := ai.status.Angle + 90
 	// move
-	r := kShipSpeed * (dt / 1000);
-	x := r * math.Sin(angle * math.Pi / 180);
-	y := r * math.Cos(angle * math.Pi / 180);
+	r := kShipSpeed * (dt / 1000)
+	x := r * math.Sin(angle*math.Pi/180)
+	y := r * math.Cos(angle*math.Pi/180)
 
 	// forward
 	if ai.status.Move == 1 {
@@ -61,9 +61,9 @@ func (ai *AIUser) doRotate(dt float64) {
 	var angle float64
 
 	if ai.status.Rotate == 2 {
-		angle = ai.status.Angle + 120 * (dt / 1000);
+		angle = ai.status.Angle + 120*(dt/1000)
 	} else {
-		angle = ai.status.Angle - 120 * (dt / 1000);
+		angle = ai.status.Angle - 120*(dt/1000)
 	}
 	if angle >= 360 {
 		angle = angle - 360
@@ -152,7 +152,7 @@ func (ai *AIUser) procMsg(msg *Msg) {
 }
 
 func (ai *AIUser) procEvent(event *Event) {
-	
+
 }
 
 func (ai *AIUser) aiEventRoutine() {
@@ -161,21 +161,21 @@ func (ai *AIUser) aiEventRoutine() {
 
 	for ai.enable {
 		select {
-		case msg =<- ai.msgch:
+		case msg = <-ai.msgch:
 			ai.procMsg(msg)
-		case event =<- ai.eventch:
+		case event = <-ai.eventch:
 			ai.procEvent(event)
 		}
 	}
-		
+
 }
 
 func NewAIUser() *AIUser {
 	ai := &AIUser{
-		name: "AI",
-		enable: true,
+		name:    "AI",
+		enable:  true,
 		shipmap: make(map[int]ShipStatus),
-		msgch: make(chan *Msg, 128),
+		msgch:   make(chan *Msg, 128),
 		eventch: make(chan *Event, 8),
 	}
 	InitShip(&ai.Ship, ai)
