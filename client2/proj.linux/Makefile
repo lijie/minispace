@@ -4,12 +4,15 @@ INCLUDES = -I.. -I../Classes
 
 SOURCES = main.cpp \
         ../Classes/AppDelegate.cpp \
-        ../Classes/HelloWorldScene.cpp
+        ../Classes/HelloWorldScene.cpp \
+	../Classes/net_node.cpp \
+	../Classes/jsoncpp.cpp
 
 #COCOS_ROOT = /home/lijie/projects/cocos2d-x
 #export COCOS_ROOT
 include $(COCOS_ROOT)/cocos2dx/proj.linux/cocos2dx.mk
 
+INCLUDES += -I$(COCOS_ROOT)/extensions
 $(warning $(INCLUDES))
 
 SHAREDLIBS += -lcocos2d
