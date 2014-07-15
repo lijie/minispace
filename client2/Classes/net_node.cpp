@@ -1,66 +1,52 @@
 #include "cocos2d.h"
-#include "network/WebSocket.h"
-#include "fifo.h"
-#include "json/json.h"
+#include "net_node.h"
 
 USING_NS_CC_EXT;
 
-class NetCall {
-  public:
-    int cmd;
-    virtual void Proc(Json::Value *value) = 0;
-};
+static const int kMaxCmd = 16;
+static NetNode shared_net_node;
 
-class NetNode;
-
-class NetSocket : public WebSocket::Delegate {
-  public:
-    bool init(const char *url);
-    ~NetSocket();
-    virtual void onOpen(WebSocket *ws);
-    virtual void onMessage(WebSocket* ws, const Data& data);
-    virtual void onClose(WebSocket* ws);
-    virtual void onError(WebSocket* ws, const ErrorCode& error);
-
-  private:
-    WebSocket *ws_;
-    NetNode *node_;
-};
-
-NetSocket::init(const char *url) {
-    ws_ = new WebSocket;
-    ws_->init(*this, url);
+NetNode * NetNode::Shared() {
+  return &shared_net_node;
 }
 
-NetSocket::~NetSocket() {
-    if (ws_) {
-        delete ws_;
+bool NetNode::init() {
+    CCNode::init();
+    return true;
+}
+
+void NetNode::onOpen(WebSocket *ws) {
+    if (conn_) {
+      conn_->onOpen();
     }
 }
 
-static const int kMaxCmd = 16;
+void NetNode::onClose(WebSocket *ws) {
+    if (conn_) {
+      conn_->onClose();
+    }
+}
 
-class NetNode : public cocos2d::CCNode {
-  public:
-    bool init();
-    void update(float dt);
+void NetNode::onMessage(WebSocket *ws, const WebSocket::Data& data) {
+    printf("%s\n", __func__);
+}
 
-    void AddCallback(int cmd);
+void NetNode::onError(WebSocket* ws, const WebSocket::ErrorCode& error) {
+    if (conn_) {
+      conn_->onClose();
+    }
+}
 
-    // called in net thread
-    void PutMsg(Json::Value *v);
-    // called in ui thread
-    Json::Value * GetMsg();
+bool NetNode::Connect(const char *url, NetConn *conn) {
+    ws_ = new WebSocket;
+    ws_->init(*this, url);
+    conn_ = conn;
+    return true;
+}
 
-  private:
-    NetSocket sock_;
-    fifo_t *fifo_;
-    NetCall *table_[16];
-};
-
-bool NetNode::init(const char *url) {
-    CCNode::init();
-    sock_.init(url);
+bool NetNode::Send(const Json::Value& value) {
+    ws_->send("hello, world");
+    return true;
 }
 
 void NetNode::PutMsg(Json::Value *value) {
@@ -77,6 +63,13 @@ Json::Value * NetNode::GetMsg() {
     return NULL;
 }
 
+void NetNode::AddCallback(int cmd, NetCall *call) {
+  if (cmd < 0 || cmd >= kMaxCmd)
+    return;
+
+  table_[cmd] = call;
+}
+
 void NetNode::update(float dt) {
     Json::Value *v = GetMsg();
     if (v == NULL)
@@ -91,4 +84,25 @@ void NetNode::update(float dt) {
     call->Proc(v);
 
     // done
+    delete v;
 }
+
+class NetNodeTestOpen : public NetCall {
+  public:
+    NetNode *node;
+    void Proc(Json::Value *value) {
+        Json::Value foo;
+        node->Send(foo);
+    }
+};
+
+#if 0
+void NetNodeTest() {
+    NetNode *node = new NetNode;
+    NetNodeTestOpen open;
+    open.node = node;
+
+    node->init();
+    node->Connect("ws://127.0.0.1:12345/echo");
+}
+#endif

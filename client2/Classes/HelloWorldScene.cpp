@@ -17,6 +17,8 @@ CCScene* HelloWorld::scene()
     return scene;
 }
 
+extern void NetNodeTest();
+
 // on "init" you need to initialize your instance
 bool HelloWorld::init()
 {
@@ -72,7 +74,8 @@ bool HelloWorld::init()
 
     // add the sprite as a child to this layer
     this->addChild(pSprite, 0);
-    
+
+    NetNodeTest();
     return true;
 }
 

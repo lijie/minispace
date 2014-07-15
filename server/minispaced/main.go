@@ -23,14 +23,14 @@ func echo(ws *websocket.Conn) {
 		var reply string
 
 		if err = websocket.Message.Receive(ws, &reply); err != nil {
-			log.Fatal("Receive err %v\n", err)
+			fmt.Printf("Receive err %v\n", err)
 			break
 		}
-		if err = websocket.Message.Send(ws, &reply); err != nil {
-			log.Fatal("Send err %v\n", err)
+		fmt.Printf("recv %s\n", reply);
+		if err = websocket.Message.Send(ws, reply); err != nil {
+			fmt.Printf("Send err %v\n", err)
 			break
 		}
-		log.Printf("Send and recv %s\n", reply);
 	}
 }
 
@@ -61,7 +61,12 @@ func main() {
 		return
 	}
 
-	http.Handle("/echo", websocket.Handler(echo));
+	echoproto := websocket.Server{
+		Handshake: nil,
+		Handler: websocket.Handler(echo),
+	}
+	http.Handle("/echo", echoproto);
+
 	myproto := websocket.Server{
 		Handshake: nil,
 		Handler: websocket.Handler(clientProc),
