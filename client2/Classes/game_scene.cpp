@@ -1,23 +1,269 @@
 #include <cocos2d.h>
+#include "game_scene.h"
+#include "net_node.h"
+#include "role.h"
 // #include <cocos-ext.h>
 
-class GameScene : public CCScene {
- public:
-  CREATE_FUNC(GameScene);
+USING_NS_CC;
+// USING_NS_CC_EXT;
 
-  bool init();
-  void onEnter();
+class NPCLayer : public CCLayer {
+ public:
+  CREATE_FUNC(NPCLayer);
+};
+
+class BgLayer : public CCLayer {
+ public:
+  CREATE_FUNC(BgLayer);
+
+  bool init() {
+    CCLayer::init();
+    return true;
+  }
+
+  void onEnter() {
+    CCLayer::onEnter();
+
+    CCSprite *p;
+    // add background
+    CCSpriteBatchNode *batch = CCSpriteBatchNode::create("background.png", 90);
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 0));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 256));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 512));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 768));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 1024));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 1024 + 256));
+      addChild(p);
+    }
+    for (int i = 0; i < 10; i++) {
+      p = CCSprite::createWithTexture(batch->getTexture());
+      p->setPosition(ccp(i * 256, 1024 + 256 * 2));
+      addChild(p);
+    }
+    // this.addChild(batch, 0);
+  }
 
  private:
 };
+
+class UserNotifyCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+  CCNode *npc_;
+};
+
+void UserNotifyCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& users = body["users"];
+
+  if (users.size() == 0)
+    return;
+
+  for (unsigned int i = 0; i < users.size(); i++) {
+    const Json::Value& u = users[i];
+    int id = u["id"].asInt();
+
+    if (id == Role::Self()->id()) {
+      // set hp
+      continue;
+    }
+
+    Role *o = Role::FindByID(id);
+    if (o == NULL) {
+      CCLOG("user id %d doesnot exist!\n", id);
+      continue;
+    }
+
+    float x = u["x"].asFloat();
+    float y = u["y"].asFloat();
+    float angle = u["angle"].asFloat();
+    int move = u["move"].asInt();
+    int rotate = u["rotate"].asInt();
+
+    if (o->sprite() == NULL)
+      o->Init(npc_, ccp(x, y));
+    o->set_loc(ccp(x, y));
+    // o->sprite()->setPosition(ccp(x, y));
+    o->set_angle(angle);
+    o->set_move(move, rotate);
+  }
+
+}
+
+class ShootBeamCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+};
+
+void ShootBeamCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& data = body["data"];
+
+  int id = data["id"].asInt();
+  Role *o = Role::FindByID(id);
+  if (o == NULL) {
+    CCLOG("%d not found\n", id);
+    return;
+  }
+
+  // update ship status before shoot
+  float x = data["x"].asFloat();
+  float y = data["y"].asFloat();
+  float angle = data["angle"].asFloat();
+  int move = data["move"].asInt();
+  int rotate = data["rotate"].asInt();
+  int beamid = data["beamid"].asInt();
+  o->set_loc(ccp(x, y));
+  o->set_angle(angle);
+  o->set_move(move, rotate);
+  o->FlushLoc();
+  // do shoot
+  o->ShootBeam(beamid);
+}
+
+class StopBeamCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+};
+
+void StopBeamCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& data = body["data"];
+
+  int id = data["id"].asInt();
+  int beamid = data["beamid"].asInt();
+
+  Role *o;
+  if ((o = Role::FindByID(id)) == NULL)
+    return;
+
+  o->StopBeam(beamid);
+}
+
+class ShipDeadCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+};
+
+void ShipDeadCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& data = body["data"];
+
+  int id = data.asInt();
+
+  Role *o;
+  if ((o = Role::FindByID(id)) == NULL)
+    return;
+
+  o->Die();
+}
+
+class ShipRestartCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+};
+
+void ShipRestartCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+  const Json::Value& body = v["body"];
+  const Json::Value& data = body["data"];
+
+  int id = data.asInt();
+  Role *o;
+  if ((o = Role::FindByID(id)) == NULL)
+    return;
+
+  o->Restart();
+}
 
 bool GameScene::init() {
   if (!CCScene::init())
     return false;
 
+  CCLOG("GameScene init\n");
   return true;
 }
 
-void GameScene::onEnter() {
+void GameScene::InitSelf() {
+  CCSize size = CCDirector::sharedDirector()->getWinSize();
+  Role::Self()->Init(this, ccp(size.width / 2, size.height / 2));
 }
 
+void GameScene::onEnter() {
+  CCScene::onEnter();
+  CCLOG("GameScene onEnter\n");
+
+  scheduleUpdate();
+  // setKeyboardEnabled(true);
+
+  // proc net msg
+  addChild(NetNode::Shared());
+
+  npc_ = NPCLayer::create();
+  addChild(npc_, 10);
+  npc_->setPosition(ccp(-480, -320));
+  npc_->setPosition(ccp(0, 0));
+
+  bg_ = BgLayer::create();
+  addChild(bg_, 5);
+
+  radar_ = CCSprite::create("radio.png");
+  addChild(radar_, 40);
+  radar_->setPosition(ccp(840, 520));
+
+  InitSelf();
+
+  UserNotifyCall *call = new UserNotifyCall;
+  call->npc_ = npc_;
+  NetNode::Shared()->AddCallback(3, call);
+  NetNode::Shared()->AddCallback(7, new StopBeamCall);
+  NetNode::Shared()->AddCallback(8, new ShootBeamCall);
+  NetNode::Shared()->AddCallback(9, new ShipDeadCall);
+  NetNode::Shared()->AddCallback(10, new ShipRestartCall);
+}
+
+void GameScene::MoveShips(float dt) {
+  for (int i = 0; i < 16; i++) {
+    Role *r = Role::FindByID(i);
+    if (r == NULL || r->sprite() == NULL || r->dead())
+      continue;
+
+    r->UpdateLoc(dt);
+    r->Rotate(dt);
+    r->Move(dt);
+  }
+}
+
+void GameScene::update(float dt) {
+  MoveShips(dt);
+}

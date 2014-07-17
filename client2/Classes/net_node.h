@@ -22,6 +22,8 @@ class NetNode : public cocos2d::CCNode, public WebSocket::Delegate {
  public:
   bool init();
   void update(float dt);
+  void onEnter();
+  CREATE_FUNC(NetNode);
 
   bool Connect(const char *url, NetConn *);
   bool Send(const Json::Value& value);

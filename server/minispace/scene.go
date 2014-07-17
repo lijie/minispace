@@ -277,6 +277,7 @@ func (s *Scene) addPlayer(e *Event) {
 
 	if miniConfig.EnableAI && s.num < 8 {
 		s.addai(8 - s.num)
+		// s.addai(1)
 	}
 }
 
@@ -379,7 +380,7 @@ func (s *Scene) runFrame(delta float64) {
 }
 
 const (
-	SceneSleepTime = 20
+	SceneSleepTime = 50
 )
 
 func (s *Scene) Run() {

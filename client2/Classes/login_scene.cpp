@@ -1,4 +1,6 @@
 #include "login_scene.h"
+#include "game_scene.h"
+#include "role.h"
 #include "net_node.h"
 
 class MyConn : public NetConn {
@@ -21,9 +23,37 @@ class LoginCall : public NetCall {
 };
 
 void LoginCall::Proc(Json::Value *value) {
+  CCLOG("%s\n", __func__);
   int errcode = value->get("errcode", -1).asInt();
   if (errcode == 0) {
-    sc_->startPlay();
+    const Json::Value& body = (*value)["body"];
+    int id = body.get("id", -1).asInt();
+    if (id != -1) {
+      Role * r = Role::CreateSelf(id, "test");
+      assert(r != NULL);
+      sc_->startPlay();
+    }
+  }
+}
+
+class AddUserCall : public NetCall {
+ public:
+  void Proc(Json::Value *value);
+};
+
+void AddUserCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& users = body["users"];
+
+  if (users.size() == 0)
+    return;
+
+  for (unsigned int i = 0; i < users.size(); i++) {
+    const Json::Value& u = users[i];
+    Role::Create(u["id"].asInt(), u["name"].asString());
+    CCLOG("add user %d %s\n", u["id"].asInt(), u["name"].asString().c_str());
   }
 }
 
@@ -35,7 +65,7 @@ bool LoginScene::init() {
     return false;
 
   state_ = LOGIN_INIT;
-  NetNode::Shared()->init();
+  // NetNode::Shared()->init();
   return true;
 }
 
@@ -51,16 +81,37 @@ void LoginScene::onEnter() {
   btn->addTouchEventListener(this, toucheventselector(LoginScene::onBtnLogin));
 
   scheduleUpdate();
+
+  addChild(NetNode::Shared());
 }
 
 void LoginScene::startPlay() {
+  CCLOG("%s\n", __func__);
+
+  // keep netnode
+  // TODO: do this in NetNode::init() ?
+  NetNode::Shared()->retain();
+
+  // remove from login scene
+  NetNode::Shared()->removeFromParent();
+
+  GameScene *sc = GameScene::create();
+  CCDirector::sharedDirector()->replaceScene(CCTransitionSlideInB::create(0.5, sc));
 }
 
 void LoginScene::startLogin() {
+  CCLOG("%s\n", __func__);
   Json::Value value;
   value["cmd"] = 1;
+  value["userid"] = "test";
+  
+  Json::Value body;
+  body["password"] = "pass";
+
+  value["body"] = body;
 
   NetNode::Shared()->AddCallback(1, new LoginCall);
+  NetNode::Shared()->AddCallback(6, new AddUserCall);
   NetNode::Shared()->Send(value);
 }
 
@@ -71,7 +122,7 @@ void LoginScene::startConnect() {
   MyConn *conn = new MyConn;
   conn->sc_ = this;
 
-  NetNode::Shared()->Connect("ws://127.0.0.1:12345/echo", conn);
+  NetNode::Shared()->Connect("ws://127.0.0.1:12345/minispace", conn);
   state_ = LOGIN_CONNECT;
 }
 
@@ -89,5 +140,6 @@ void LoginScene::onBtnLogin(CCObject* sender, TouchEventType type) {
 }
 
 void LoginScene::update(float dt) {
+  // CCLOG("%s\n", __func__);
 }
 

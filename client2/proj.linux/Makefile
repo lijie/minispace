@@ -6,7 +6,9 @@ SOURCES = main.cpp \
         ../Classes/AppDelegate.cpp \
 	../Classes/net_node.cpp \
 	../Classes/jsoncpp.cpp \
-	../Classes/login_scene.cpp
+	../Classes/role.cpp \
+	../Classes/login_scene.cpp \
+	../Classes/game_scene.cpp
 
 #COCOS_ROOT = /home/lijie/projects/cocos2d-x
 #export COCOS_ROOT

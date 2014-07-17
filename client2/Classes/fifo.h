@@ -13,6 +13,9 @@ typedef struct fifo {
 static inline fifo_t * fifo_new(size_t num) {
 	size_t size = sizeof(fifo_t) + sizeof(uintptr_t) * num;
 	fifo_t *f = (fifo_t *)malloc(size);
+	f->gt = 0;
+	f->pt = 0;
+	f->size = num;
 	return f;
 }
 

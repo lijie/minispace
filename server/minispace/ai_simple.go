@@ -9,6 +9,11 @@ type aiSimpleAlgo struct {
 	rander *rand.Rand
 }
 
+func (algo *aiSimpleAlgo) Update2(ai AIAction, dt float64) {
+	ai.ActMove(1)
+	ai.ActRotate(2)
+}
+
 func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
 	// always keep moving
 	ai.ActMove(1)
