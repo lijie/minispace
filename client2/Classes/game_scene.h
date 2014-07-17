@@ -18,6 +18,7 @@ class GameScene : public CCScene {
   void onEnter();
   void update(float dt);
 
+  void TimeCallback(float dt);
   void InitSelf();
   void MoveShips(float dt);
  private:

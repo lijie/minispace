@@ -37,9 +37,9 @@ const (
 // screen size
 const (
 	kScreenWidth = 960
-	kScreenHeight = 640
-	kMapWidth = kScreenWidth * 2
-	kMapHeight = kScreenHeight * 2
+	kScreenHeight = 540
+	kMapWidth = kScreenWidth
+	kMapHeight = kScreenHeight
 )
 
 const (

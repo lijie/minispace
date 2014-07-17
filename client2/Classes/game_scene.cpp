@@ -231,7 +231,7 @@ void GameScene::onEnter() {
 
   npc_ = NPCLayer::create();
   addChild(npc_, 10);
-  npc_->setPosition(ccp(-480, -320));
+  // npc_->setPosition(ccp(-480, -320));
   npc_->setPosition(ccp(0, 0));
 
   bg_ = BgLayer::create();
@@ -250,6 +250,12 @@ void GameScene::onEnter() {
   NetNode::Shared()->AddCallback(8, new ShootBeamCall);
   NetNode::Shared()->AddCallback(9, new ShipDeadCall);
   NetNode::Shared()->AddCallback(10, new ShipRestartCall);
+
+  schedule(schedule_selector(GameScene::TimeCallback), 0.05, -1, 0);
+}
+
+void GameScene::TimeCallback(float dt) {
+  Role::Self()->SendUpdate();
 }
 
 void GameScene::MoveShips(float dt) {

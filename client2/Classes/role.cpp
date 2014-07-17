@@ -1,5 +1,7 @@
 #include <math.h>
 #include "role.h"
+#include "net_node.h"
+#include "json/json.h"
 
 const int MOVE_NONE = 0;
 const int MOVE_FORWARD = 1;
@@ -12,7 +14,7 @@ const int ROTATE_RIGHT = 2;
 const int MAX_BEAMCOUNT = 5;
 
 const int SCREEN_WIDTH = 960;
-const int SCREEN_HEIGHT = 640;
+const int SCREEN_HEIGHT = 540;
 
 const int MAP_WIDTH = SCREEN_WIDTH * 2;
 const int MAP_HEIGHT = SCREEN_HEIGHT * 2;
@@ -105,7 +107,7 @@ Role * Role::Self() {
 
 void Role::Restart() {
   if (isself_) {
-    loc_ = ccp(480, 320);
+    loc_ = ccp(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
   }
 
   angle_ = 0;
@@ -164,6 +166,23 @@ void Role::UpdateLoc(float dt) {
 void Role::FlushLoc() {
   sp_->setPosition(loc_);
   sp_->setRotation(angle_);
+}
+
+void Role::SendUpdate() {
+  Json::Value obj;
+  Json::Value body;
+
+  body["x"] = sp_->getPositionX();
+  body["y"] = sp_->getPositionY();
+  body["angle"] = sp_->getRotation();
+  body["rotate"] = rotate_;
+  body["move"] = move_;
+
+  obj["cmd"] = 2;
+  obj["userid"] = "test";
+  obj["body"] = body;
+
+  NetNode::Shared()->Send(obj);
 }
 
 void Role::ShootBeam(int beamid) {

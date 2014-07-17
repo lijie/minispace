@@ -21,9 +21,12 @@ class LoginScene : public CCScene {
   void startLogin();
   void startPlay();
 
+  void InputNameEvent(CCObject *pSender, TextFiledEventType type);
  private:
   int state_;
   UILayer *ui_layer_;
+  TextField *pass_;
+  TextField *name_;
 };
 
 

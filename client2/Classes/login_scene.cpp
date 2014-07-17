@@ -80,10 +80,21 @@ void LoginScene::onEnter() {
   Button *btn = static_cast<Button*>(UIHelper::seekWidgetByName(layout, "BtnGo"));
   btn->addTouchEventListener(this, toucheventselector(LoginScene::onBtnLogin));
 
-  scheduleUpdate();
+  name_ = static_cast<TextField*>(UIHelper::seekWidgetByName(layout, "InputName"));
+  assert(name_ != NULL);
+  name_->addEventListenerTextField(this, textfieldeventselector(LoginScene::InputNameEvent));
 
+  pass_ = static_cast<TextField*>(UIHelper::seekWidgetByName(layout, "InputPass"));
+  assert(pass_ != NULL);
+  pass_->addEventListenerTextField(this, textfieldeventselector(LoginScene::InputNameEvent));
+
+  scheduleUpdate();
   addChild(NetNode::Shared());
 }
+
+void LoginScene::InputNameEvent(CCObject *pSender, TextFiledEventType type) {
+}
+
 
 void LoginScene::startPlay() {
   CCLOG("%s\n", __func__);
@@ -100,13 +111,13 @@ void LoginScene::startPlay() {
 }
 
 void LoginScene::startLogin() {
-  CCLOG("%s\n", __func__);
+  CCLOG("%s %s %s\n", __func__, name_->getStringValue(), pass_->getStringValue());
   Json::Value value;
   value["cmd"] = 1;
-  value["userid"] = "test";
+  value["userid"] = name_->getStringValue();
   
   Json::Value body;
-  body["password"] = "pass";
+  body["password"] = pass_->getStringValue();
 
   value["body"] = body;
 

@@ -65,6 +65,7 @@ class Role {
   static Role * Self();
   static Role * FindByID(int id);
 
+  void SendUpdate();
   void Restart();
   void Die();
   void StopBeam(int beamid);
