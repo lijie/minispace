@@ -100,6 +100,8 @@ void UserNotifyCall::Proc(Json::Value *value) {
 
     float x = u["x"].asFloat();
     float y = u["y"].asFloat();
+    float destx = u["destx"].asFloat();
+    float desty = u["desty"].asFloat();
     float angle = u["angle"].asFloat();
     int move = u["move"].asInt();
     int rotate = u["rotate"].asInt();
@@ -110,6 +112,8 @@ void UserNotifyCall::Proc(Json::Value *value) {
     // o->sprite()->setPosition(ccp(x, y));
     o->set_angle(angle);
     o->set_move(move, rotate);
+    o->FlushLoc();
+    o->set_dest(ccp(destx, desty));
   }
 
 }
@@ -206,22 +210,48 @@ void ShipRestartCall::Proc(Json::Value *value) {
   o->Restart();
 }
 
-bool GameScene::init() {
-  if (!CCScene::init())
+bool GameLayer::init() {
+  if (!CCLayer::init())
     return false;
 
-  CCLOG("GameScene init\n");
+  setTouchEnabled(true);
+
+  CCLOG("GameLayer init\n");
   return true;
 }
 
-void GameScene::InitSelf() {
+void GameLayer::registerWithTouchDispatcher(void) {
+  CCDirector::sharedDirector()->getTouchDispatcher()->addStandardDelegate(this, 0);
+}
+
+void GameLayer::ccTouchesBegan(CCSet *touches, CCEvent *event) {
+}
+
+void GameLayer::ccTouchesMoved(CCSet *touches, CCEvent *event) {
+}
+
+void GameLayer::ccTouchesEnded(CCSet *touches, CCEvent *event) {
+  CCSetIterator iter = touches->begin();
+  for (; iter != touches->end(); iter++) {
+    CCTouch* touch = (CCTouch*)(*iter);
+    CCPoint loc = touch->getLocation();
+    Role::Self()->set_dest(loc);
+    Role::Self()->SendUpdate();
+  }
+}
+
+void GameLayer::ccTouchesCancelled(CCSet *touches, CCEvent *event) {
+  CCLOG("%s\n", __FUNCTION__);
+}
+
+void GameLayer::InitSelf() {
   CCSize size = CCDirector::sharedDirector()->getWinSize();
   Role::Self()->Init(this, ccp(size.width / 2, size.height / 2));
 }
 
-void GameScene::onEnter() {
-  CCScene::onEnter();
-  CCLOG("GameScene onEnter\n");
+void GameLayer::onEnter() {
+  CCLayer::onEnter();
+  CCLOG("GameLayer onEnter\n");
 
   scheduleUpdate();
   // setKeyboardEnabled(true);
@@ -251,25 +281,41 @@ void GameScene::onEnter() {
   NetNode::Shared()->AddCallback(9, new ShipDeadCall);
   NetNode::Shared()->AddCallback(10, new ShipRestartCall);
 
-  schedule(schedule_selector(GameScene::TimeCallback), 0.05, -1, 0);
+  schedule(schedule_selector(GameLayer::TimeCallback), 0.05, -1, 0);
 }
 
-void GameScene::TimeCallback(float dt) {
-  Role::Self()->SendUpdate();
+void GameLayer::TimeCallback(float dt) {
+  // Role::Self()->SendUpdate();
 }
 
-void GameScene::MoveShips(float dt) {
+void GameLayer::MoveShips(float dt) {
   for (int i = 0; i < 16; i++) {
     Role *r = Role::FindByID(i);
     if (r == NULL || r->sprite() == NULL || r->dead())
       continue;
 
-    r->UpdateLoc(dt);
+    // r->UpdateLoc(dt);
     r->Rotate(dt);
     r->Move(dt);
   }
 }
 
-void GameScene::update(float dt) {
+void GameLayer::update(float dt) {
   MoveShips(dt);
+}
+
+bool GameScene::init() {
+  if (!CCScene::init())
+    return false;
+
+  return true;
+}
+
+void GameScene::onEnter() {
+  CCScene::onEnter();
+
+  GameLayer *layer = GameLayer::create();
+  assert(layer != NULL);
+
+  addChild(layer);
 }

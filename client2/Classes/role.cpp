@@ -3,25 +3,6 @@
 #include "net_node.h"
 #include "json/json.h"
 
-const int MOVE_NONE = 0;
-const int MOVE_FORWARD = 1;
-const int MOVE_BACKWARD = 2;
-
-const int ROTATE_NONE = 0;
-const int ROTATE_LEFT = 1;
-const int ROTATE_RIGHT = 2;
-
-const int MAX_BEAMCOUNT = 5;
-
-const int SCREEN_WIDTH = 960;
-const int SCREEN_HEIGHT = 540;
-
-const int MAP_WIDTH = SCREEN_WIDTH * 2;
-const int MAP_HEIGHT = SCREEN_HEIGHT * 2;
-
-const int SHIP_SPEED = 160;
-const int RADAR_SCALE = 1;
-
 Role * Role::self_;
 Role * Role::table_[16] = {NULL};
 
@@ -37,6 +18,8 @@ Role::Role() {
   move_ = MOVE_NONE;
   rotate_ = ROTATE_NONE;
   syncstep_ = 0;
+  move_dt_ = 0;
+  rotate_dt_ = 0;
 }
 
 Role * Role::FindByID(int id) {
@@ -137,7 +120,21 @@ void Role::Die() {
 }
 
 void Role::Rotate(float dt) {
-  float angle;
+  double angle;
+
+  if (move_ == MOVE_NONE)
+    return;
+
+  CalcDestRotate(dest_loc_);
+
+  if (rotate_dt_ <= 0)
+    return;
+
+  rotate_dt_ -= dt;
+  if (rotate_dt_ < 0) {
+    dt = dt + rotate_dt_;
+    rotate_dt_ = 0;
+  }
 
   if (rotate_ == ROTATE_LEFT)
     angle = sp_->getRotation() - (120 * dt);
@@ -163,6 +160,51 @@ void Role::UpdateLoc(float dt) {
   }
 }
 
+void Role::CalcDestMove(const CCPoint& dest) {
+  CCPoint loc2 = sp_->getPosition();
+  double y = dest.y - loc2.y;
+  double x = dest.x - loc2.x;
+  double dist = sqrt(y*y + x*x);
+  move_dt_ = dist / 160; 
+}
+
+void Role::CalcDestRotate(const CCPoint& dest) {
+  CCPoint loc2 = sp_->getPosition();
+  double r = atan((dest.y - loc2.y) / (dest.x - loc2.x));
+
+    r = r / M_PI * 180;
+    double r2 = sp_->getRotation();
+
+    double r3 = 0;
+    if (r < 0) {
+      if (dest.y > loc2.y)
+        r3 = 360 - (180 + r);
+      else
+        r3 = abs(r);
+    } else {
+      if (dest.x > loc2.x)
+        r3 = 360 - r;
+      else
+        r3 = 180 - r;
+    }
+
+    double r4 = r3 - r2;
+    if (r4 < 0)
+      r4 = r4 + 360;
+
+    // CCLOG("rrr %f %f %f %f", r, r2, r3, r4);
+#if 1
+    // move_ = MOVE_FORWARD;
+    if (r4 < 180) {
+      rotate_ = ROTATE_RIGHT;
+      rotate_dt_ = r4 / 120;
+    } else {
+      rotate_ = ROTATE_LEFT;
+      rotate_dt_ = (360 - r4) / 120;
+    }
+#endif
+}
+
 void Role::FlushLoc() {
   sp_->setPosition(loc_);
   sp_->setRotation(angle_);
@@ -174,6 +216,8 @@ void Role::SendUpdate() {
 
   body["x"] = sp_->getPositionX();
   body["y"] = sp_->getPositionY();
+  body["destx"] = dest_loc_.x;
+  body["desty"] = dest_loc_.y;
   body["angle"] = sp_->getRotation();
   body["rotate"] = rotate_;
   body["move"] = move_;
@@ -223,11 +267,17 @@ void Role::Move(float dt) {
   if (move_ == MOVE_NONE)
     return;
 
+  CalcDestMove(dest_loc_);
+  if (move_dt_ <= 0) {
+    move_ = MOVE_NONE;
+    return;
+  }
+
+  move_dt_ -= dt;
+  if (move_dt_ < 0)
+    dt = dt + move_dt_;
+
   float angle = sp_->getRotation() + 90;
-//  if (move_ == MOVE_BACKWARD)
-//    angle -= 180;
-//  if (angle >= 360)
-//    angle = angle - 360;
 
   float r = SHIP_SPEED * dt;
   float x = r * sin(angle / 180 * M_PI);

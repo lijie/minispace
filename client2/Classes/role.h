@@ -6,6 +6,25 @@
 
 USING_NS_CC;
 
+const int MOVE_NONE = 0;
+const int MOVE_FORWARD = 1;
+const int MOVE_BACKWARD = 2;
+
+const int ROTATE_NONE = 0;
+const int ROTATE_LEFT = 1;
+const int ROTATE_RIGHT = 2;
+
+const int MAX_BEAMCOUNT = 5;
+
+const int SCREEN_WIDTH = 960;
+const int SCREEN_HEIGHT = 540;
+
+const int MAP_WIDTH = SCREEN_WIDTH * 2;
+const int MAP_HEIGHT = SCREEN_HEIGHT * 2;
+
+const int SHIP_SPEED = 160;
+const int RADAR_SCALE = 1;
+
 class BeamPool : public CCObject {
  public:
   void RemoveBeam(CCSprite *b) {
@@ -65,6 +84,9 @@ class Role {
   static Role * Self();
   static Role * FindByID(int id);
 
+  void CalcDestRotate(const CCPoint& dest);
+  void CalcDestMove(const CCPoint& dest);
+  void CalcDest(const CCPoint& dest) { CalcDestRotate(dest);};
   void SendUpdate();
   void Restart();
   void Die();
@@ -81,6 +103,8 @@ class Role {
   int id() { return id_; }
   void set_angle(float angle) { angle_ = angle; }
   void set_loc(const CCPoint loc) { loc_ = loc; }
+  void set_dest(const CCPoint loc) { dest_loc_ = loc; move_ = MOVE_FORWARD;}
+  void set_rotate_dt(double dt1) { rotate_dt_= dt1; }
   void set_move(int move, int rotate) { move_ = move; rotate_ = rotate; }
   Role();
 
@@ -88,7 +112,10 @@ class Role {
   CCSprite *sp_;
   CCNode *parent_;
   CCPoint loc_;
-  float angle_;
+  CCPoint dest_loc_;
+  double rotate_dt_;
+  double move_dt_;
+  double angle_;
   int id_;
   int move_;
   int rotate_;

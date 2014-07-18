@@ -23,7 +23,7 @@ class LoginCall : public NetCall {
 };
 
 void LoginCall::Proc(Json::Value *value) {
-  CCLOG("%s\n", __func__);
+  CCLOG("%s\n", __FUNCTION__);
   int errcode = value->get("errcode", -1).asInt();
   if (errcode == 0) {
     const Json::Value& body = (*value)["body"];
@@ -97,7 +97,7 @@ void LoginScene::InputNameEvent(CCObject *pSender, TextFiledEventType type) {
 
 
 void LoginScene::startPlay() {
-  CCLOG("%s\n", __func__);
+  CCLOG("%s\n", __FUNCTION__);
 
   // keep netnode
   // TODO: do this in NetNode::init() ?
@@ -111,7 +111,7 @@ void LoginScene::startPlay() {
 }
 
 void LoginScene::startLogin() {
-  CCLOG("%s %s %s\n", __func__, name_->getStringValue(), pass_->getStringValue());
+  CCLOG("%s %s %s\n", __FUNCTION__, name_->getStringValue(), pass_->getStringValue());
   Json::Value value;
   value["cmd"] = 1;
   value["userid"] = name_->getStringValue();
@@ -133,7 +133,7 @@ void LoginScene::startConnect() {
   MyConn *conn = new MyConn;
   conn->sc_ = this;
 
-  NetNode::Shared()->Connect("ws://127.0.0.1:12345/minispace", conn);
+  NetNode::Shared()->Connect("ws://10.20.96.187:12345/minispace", conn);
   state_ = LOGIN_CONNECT;
 }
 
@@ -141,7 +141,6 @@ void LoginScene::onBtnLogin(CCObject* sender, TouchEventType type) {
   switch (type) {
     case TOUCH_EVENT_ENDED:
       // CCDirector::sharedDirector()->replaceScene(UISceneManager::sharedUISceneManager()->previousUIScene());
-      printf("%s\n", __func__);
       startConnect();
       break;
 

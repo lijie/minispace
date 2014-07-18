@@ -10,9 +10,9 @@ USING_NS_CC_EXT;
 class BgLayer;
 class NPCLayer;
 
-class GameScene : public CCScene {
+class GameLayer : public CCLayer {
  public:
-  CREATE_FUNC(GameScene);
+  CREATE_FUNC(GameLayer);
 
   bool init();
   void onEnter();
@@ -21,10 +21,25 @@ class GameScene : public CCScene {
   void TimeCallback(float dt);
   void InitSelf();
   void MoveShips(float dt);
+
+  // for touche
+  void registerWithTouchDispatcher(void);
+  void ccTouchesBegan(CCSet *touches, CCEvent *event);
+  void ccTouchesMoved(CCSet *touches, CCEvent *event);
+  void ccTouchesEnded(CCSet *touches, CCEvent *event);
+  void ccTouchesCancelled(CCSet *touches, CCEvent *event);
+
  private:
   BgLayer *bg_;
   NPCLayer *npc_;
   CCSprite *radar_;
+};
+
+class GameScene : public CCScene {
+ public:
+  CREATE_FUNC(GameScene);
+  bool init();
+  void onEnter();
 };
 
 #endif
