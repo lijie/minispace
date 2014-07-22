@@ -17,6 +17,8 @@ type ShipStatus struct {
 	// position
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
+	DestX float64 `json:"destx"`
+	DestY float64 `json:"desty"`
 	Angle float64 `json:"angle"`
 	// forward or backward
 	Move int `json:"move"`
@@ -41,6 +43,7 @@ type Ship struct {
 	stateList List
 	deadCD float64
 	state int
+	updated bool
 }
 
 type Rect struct {
@@ -220,4 +223,5 @@ func InitShip(ship *Ship, p Player2) {
 	InitList(&ship.sceneList, ship)
 	InitList(&ship.stateList, ship)
 	ship.Player2 = p
+	ship.updated = false
 }

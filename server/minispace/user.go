@@ -4,6 +4,7 @@ import _ "code.google.com/p/go.net/websocket"
 import "fmt"
 import "time"
 import "sync"
+import "math"
 
 type UserDb struct {
 	Name string `bson:"_id"`
@@ -22,6 +23,8 @@ type ShipAttr struct {
 type User struct {
 	userdb UserDb
 	Ship
+	rotatedt float64
+	movedt float64
 	enable bool
 	login bool
 	dirty bool
@@ -117,9 +120,14 @@ func init() {
 func procUserUpdate(user *User, msg *Msg) int {
 	user.status.X = msg.Body["x"].(float64)
 	user.status.Y = msg.Body["y"].(float64)
+	user.status.DestX = msg.Body["destx"].(float64)
+	user.status.DestY = msg.Body["desty"].(float64)
 	user.status.Angle = msg.Body["angle"].(float64)
 	user.status.Move = int(msg.Body["move"].(float64))
-	user.status.Rotate = int(msg.Body["rotate"].(float64))
+	//user.status.Rotate = int(msg.Body["rotate"].(float64))
+	user.status.Rotate = ROTATE_LEFT
+	user.updated = true
+	fmt.Printf("%#v\n", user.status)
 	return PROC_OK
 }
 
@@ -261,7 +269,174 @@ func (user *User) Name() string {
 	return user.userdb.Name
 }
 
+func (user *User) calcDestRotate() {
+	st := &user.status
+	r := math.Atan((st.DestY - st.Y) / (st.DestX - st.X));
+
+	r = r / math.Pi * 180;
+	r2 := st.Angle
+	var r3 float64
+
+	if r < 0 {
+		if st.DestY > st.Y {
+			r3 = 360 - (180 + r)
+		} else {
+			r3 = math.Abs(r)
+		}
+	} else {
+		if st.DestX > st.X {
+			r3 = 360 - r
+		} else {
+			r3 = 180 - r
+		}
+	}
+
+	r4 := r3 - r2;
+	if r4 < 0 {
+		r4 = r4 + 360
+	}
+
+	// move_ = MOVE_FORWARD;
+	if r4 < 180 {
+		st.Rotate = ROTATE_RIGHT;
+		user.rotatedt = r4 / 120;
+	} else {
+		st.Rotate = ROTATE_LEFT;
+		user.rotatedt = (360 - r4) / 120;
+	}
+}
+
+func (user *User) calcDestMove() {
+	st := &user.status
+	y := st.DestY - st.Y
+	x := st.DestX - st.X
+	user.movedt = math.Sqrt(y*y + x*x) / kShipSpeed
+	// fmt.Printf("movedt %f", user.movedt)
+}
+
+func (user *User) doRotate(dt float64) {
+	st := &user.status
+	if st.Move == MOVE_NONE || st.Rotate == ROTATE_NONE {
+		return
+	}
+
+	user.calcDestRotate()
+	if user.rotatedt <= 0 {
+		user.rotatedt = 0
+		st.Rotate = ROTATE_NONE
+		fmt.Printf("should stop rotate2\n")
+		return
+	}
+
+	if dt > user.rotatedt {
+		dt = user.rotatedt
+		user.rotatedt = 0
+		fmt.Printf("should stop rotate\n")
+	} else {
+		user.rotatedt -= dt
+	}
+
+	var angle float64
+	if st.Rotate == ROTATE_LEFT {
+		angle = st.Angle - 120 * dt
+	} else if st.Rotate == ROTATE_RIGHT {
+		angle = st.Angle + 120 * dt
+	} else {
+		return
+	}
+
+	if angle < 0 {
+		angle = angle + 360
+	} else if angle >= 360 {
+		angle = angle - 360
+	}
+
+	st.Angle = angle
+	if user.rotatedt == 0 {
+		st.Rotate = ROTATE_NONE
+	}
+}
+
+func (user *User) checkMove() {
+	st := &user.status
+	y := st.DestY - st.Y
+	x := st.DestX - st.X
+	dist := math.Sqrt(y*y + x*x)
+
+	if dist > 10 {
+		fmt.Printf("WARNING: invalid move!\n")
+	}
+}
+
+func (user *User) doMove(dt float64) {
+	st := &user.status
+	if st.Move == MOVE_NONE {
+		return
+	}
+
+	user.calcDestMove()
+	if user.movedt <= 0 {
+		fmt.Printf("ship %d is stop\n", st.Id)
+		user.checkMove()
+		st.Move = MOVE_NONE
+		st.X = st.DestX
+		st.Y = st.DestY
+		return
+	}
+
+	user.movedt -= dt
+	if user.movedt < 0 {
+		fmt.Printf("ship %d is stop\n", st.Id)
+		user.checkMove()
+		st.Move = MOVE_NONE
+		st.X = st.DestX
+		st.Y = st.DestY
+		return
+	}
+
+	angle := st.Angle + 90
+	r := kShipSpeed * dt
+	x := r * math.Sin(angle / 180 * math.Pi)
+	y := r * math.Cos(angle / 180 * math.Pi)
+
+	if st.Move == MOVE_FORWARD {
+		x = st.X + x
+		y = st.Y + y
+	} else {
+		x = st.X - x
+		y = st.Y - y
+	}
+
+	if x > kMapWidth {
+		x = kMapWidth
+	} else if x < 0 {
+		x = 0
+	}
+
+	if y > kMapHeight {
+		y = kMapHeight
+	} else if y < 0 {
+		y = 0
+	}
+
+	st.X = x
+	st.Y = y
+}
+ 
 func (u *User) Update(delta float64) {
+	// ms convert to second
+	u.doRotate(delta / 1000)
+	u.doMove(delta / 1000)
+
+	u.sendPath()
+}
+
+func (u *User) sendPath() {
+	msg := NewMsg()
+	msg.Cmd = kCmdShowPath
+
+	msg.Body["data"] = &u.status
+	u.SendMsg(msg)
 }
 
 func (u *User) Dead() {

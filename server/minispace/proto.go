@@ -16,3 +16,6 @@ type ProtoShootBeam struct {
 	BeamId int `json:"beamid"`
 }
 
+type ProtoShowPath struct {
+	ShipStatus
+}

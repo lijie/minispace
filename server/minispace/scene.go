@@ -296,7 +296,14 @@ func (s *Scene) broadShipStatus() {
 
 	for p := s.shipList.Next(); p != &s.shipList; p = p.Next() {
 		c = p.Host().(*Ship)
-		n = append(n, c.Status())
+		if c.updated {
+			n = append(n, c.Status())
+			c.updated = false
+		}
+	}
+
+	if len(n) == 0 {
+		return
 	}
 
 	s.BroadProto(nil, false, kCmdShipStatus, "users", n)
