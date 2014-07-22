@@ -19,8 +19,8 @@ const int MAX_BEAMCOUNT = 5;
 const int SCREEN_WIDTH = 960;
 const int SCREEN_HEIGHT = 540;
 
-const int MAP_WIDTH = SCREEN_WIDTH * 2;
-const int MAP_HEIGHT = SCREEN_HEIGHT * 2;
+const int MAP_WIDTH = SCREEN_WIDTH;
+const int MAP_HEIGHT = SCREEN_HEIGHT;
 
 const int SHIP_SPEED = 160;
 const int RADAR_SCALE = 1;
@@ -103,7 +103,7 @@ class Role {
   int id() { return id_; }
   void set_angle(float angle) { angle_ = angle; }
   void set_loc(const CCPoint loc) { loc_ = loc; }
-  void set_dest(const CCPoint loc) { dest_loc_ = loc; move_ = MOVE_FORWARD;}
+  void set_dest(const CCPoint loc) { dest_loc_ = loc; move_ = MOVE_FORWARD; rotate_ = ROTATE_LEFT;}
   void set_rotate_dt(double dt1) { rotate_dt_= dt1; }
   void set_move(int move, int rotate) { move_ = move; rotate_ = rotate; }
   Role();

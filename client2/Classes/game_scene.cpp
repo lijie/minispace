@@ -210,6 +210,30 @@ void ShipRestartCall::Proc(Json::Value *value) {
   o->Restart();
 }
 
+class ShowPathCall : public NetCall {
+ public:
+  ShowPathCall(CCSprite *sp) { showsp_ = sp; }
+  void Proc(Json::Value *value);
+  CCSprite *showsp_;
+};
+
+void ShowPathCall::Proc(Json::Value *value) {
+  const Json::Value& v = *value;
+
+  const Json::Value& body = v["body"];
+  const Json::Value& u = body["data"];
+
+  showsp_->setVisible(true);
+
+    float x = u["x"].asFloat();
+    float y = u["y"].asFloat();
+    float angle = u["angle"].asFloat();
+
+    showsp_->setPosition(ccp(x, y));
+    showsp_->setRotation(angle);
+}
+
+
 bool GameLayer::init() {
   if (!CCLayer::init())
     return false;
@@ -275,11 +299,18 @@ void GameLayer::onEnter() {
 
   UserNotifyCall *call = new UserNotifyCall;
   call->npc_ = npc_;
+
+  showsp_ = CCSprite::create("ship-1.png");
+  showsp_->setScale(0.5);
+  addChild(showsp_, 15);
+  showsp_->setVisible(false);
+
   NetNode::Shared()->AddCallback(3, call);
   NetNode::Shared()->AddCallback(7, new StopBeamCall);
   NetNode::Shared()->AddCallback(8, new ShootBeamCall);
   NetNode::Shared()->AddCallback(9, new ShipDeadCall);
   NetNode::Shared()->AddCallback(10, new ShipRestartCall);
+  NetNode::Shared()->AddCallback(11, new ShowPathCall(showsp_));
 
   schedule(schedule_selector(GameLayer::TimeCallback), 0.05, -1, 0);
 }

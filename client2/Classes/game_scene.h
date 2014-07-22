@@ -33,6 +33,7 @@ class GameLayer : public CCLayer {
   BgLayer *bg_;
   NPCLayer *npc_;
   CCSprite *radar_;
+  CCSprite *showsp_;
 };
 
 class GameScene : public CCScene {

@@ -122,18 +122,20 @@ void Role::Die() {
 void Role::Rotate(float dt) {
   double angle;
 
-  if (move_ == MOVE_NONE)
+  if (move_ == MOVE_NONE || rotate_ == ROTATE_NONE)
     return;
 
   CalcDestRotate(dest_loc_);
-
-  if (rotate_dt_ <= 0)
+  if (rotate_dt_ <= 0) {
+    rotate_ = ROTATE_NONE;
     return;
+  }
 
-  rotate_dt_ -= dt;
-  if (rotate_dt_ < 0) {
-    dt = dt + rotate_dt_;
+  if (rotate_dt_ < dt) {
+    dt = rotate_dt_;
     rotate_dt_ = 0;
+  } else {
+    rotate_dt_ -= dt;
   }
 
   if (rotate_ == ROTATE_LEFT)
@@ -148,6 +150,9 @@ void Role::Rotate(float dt) {
   else if (angle >= 360)
     angle = angle - 360;
   sp_->setRotation(angle);
+
+  if (rotate_dt_ == 0)
+    rotate_ = ROTATE_NONE;
 }
 
 void Role::UpdateLoc(float dt) {
@@ -270,12 +275,15 @@ void Role::Move(float dt) {
   CalcDestMove(dest_loc_);
   if (move_dt_ <= 0) {
     move_ = MOVE_NONE;
+    sp_->setPosition(dest_loc_);
     return;
   }
 
   move_dt_ -= dt;
-  if (move_dt_ < 0)
-    dt = dt + move_dt_;
+  if (move_dt_ < 0) {
+    move_ = MOVE_NONE;
+    sp_->setPosition(dest_loc_);
+  }
 
   float angle = sp_->getRotation() + 90;
 
