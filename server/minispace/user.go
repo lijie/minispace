@@ -4,6 +4,7 @@ import _ "code.google.com/p/go.net/websocket"
 import "fmt"
 import "time"
 import "sync"
+import _ "math"
 
 type UserDb struct {
 	Name string `bson:"_id"`
@@ -22,6 +23,8 @@ type ShipAttr struct {
 type User struct {
 	userdb UserDb
 	Ship
+	rotatedt float64
+	movedt float64
 	enable bool
 	login bool
 	dirty bool
@@ -111,15 +114,40 @@ func init() {
 	ClientProcRegister(kCmdUserUpdate, procUserUpdate)
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
 	ClientProcRegister(kCmdUserAction, procUserAction)
+	ClientProcRegister(kCmdSetTarget, procSetTarget)
 //	ClientProcRegister(kCmdShipRestart, procShipRestart)
 }
 
-func procUserUpdate(user *User, msg *Msg) int {
+func procSetTarget(user *User, msg *Msg) int {
 	user.status.X = msg.Body["x"].(float64)
 	user.status.Y = msg.Body["y"].(float64)
 	user.status.Angle = msg.Body["angle"].(float64)
 	user.status.Move = int(msg.Body["move"].(float64))
 	user.status.Rotate = int(msg.Body["rotate"].(float64))
+	targetid := msg.Body["targetid"].(float64)
+	user.updated = true
+
+	user.SetTarget(int(targetid))
+	return PROC_OK
+}
+
+func procUserUpdate(user *User, msg *Msg) int {
+	user.status.X = msg.Body["x"].(float64)
+	user.status.Y = msg.Body["y"].(float64)
+	user.status.DestX = msg.Body["destx"].(float64)
+	user.status.DestY = msg.Body["desty"].(float64)
+	user.status.Angle = msg.Body["angle"].(float64)
+	user.status.Move = int(msg.Body["move"].(float64))
+	user.status.Rotate = int(msg.Body["rotate"].(float64))
+	user.updated = true
+
+	// if has new dest XY, clear target
+	if user.status.Move == MOVE_FORWARD {
+		user.target = nil
+	}
+
+	// user.scene.StartRunFrame()
+	// ship.Update() will simulate ship move and rotate
 	return PROC_OK
 }
 
@@ -262,6 +290,16 @@ func (user *User) Name() string {
 }
 
 func (u *User) Update(delta float64) {
+	// ms convert to second
+	u.sendPath()
+}
+
+func (u *User) sendPath() {
+	msg := NewMsg()
+	msg.Cmd = kCmdShowPath
+
+	msg.Body["data"] = &u.status
+	u.SendMsg(msg)
 }
 
 func (u *User) Dead() {

@@ -14,6 +14,9 @@ const (
 	kCmdShootBeam = 8
 	kCmdShipDead = 9
 	kCmdShipRestart = 10
+	kCmdShowPath = 11
+	kCmdSetTarget = 12
+	kCmdShipStop = 13
 )
 
 const (
@@ -27,6 +30,7 @@ const (
 	kEventKickClient = 3
 	kEventDBLoad = 4
 	kEventDBSave = 5
+	kEventRunFrame = 6
 )
 
 const (
@@ -44,6 +48,18 @@ const (
 
 const (
 	kShipSpeed = 160
+)
+
+const (
+	ROTATE_NONE = 0
+	ROTATE_LEFT = 1
+	ROTATE_RIGHT = 2
+)
+
+const (
+	MOVE_NONE = 0
+	MOVE_FORWARD = 1
+	MOVE_BACKWARD = 2
 )
 
 // error
