@@ -1,12 +1,10 @@
 package minispace
 
 import _ "fmt"
-import "math"
 
 type AIAction interface {
 	ActShoot() error
-	ActMove(int)
-	ActRotate(int)
+	ActMove(x, y float64)
 }
 
 type AIAlgo interface {
@@ -24,60 +22,7 @@ type AIUser struct {
 	eventch chan *Event
 }
 
-func (ai *AIUser) doMove(dt float64) {
-	angle := ai.status.Angle + 90
-	// move
-	r := kShipSpeed * (dt / 1000)
-	x := r * math.Sin(angle*math.Pi/180)
-	y := r * math.Cos(angle*math.Pi/180)
-
-	// forward
-	if ai.status.Move == 1 {
-		x = ai.status.X + x
-		y = ai.status.Y + y
-	} else {
-		// backward
-		x = ai.status.X - x
-		y = ai.status.Y - y
-	}
-
-	if x > kMapWidth {
-		x = kMapWidth
-	} else if x < 0 {
-		x = 0
-	}
-
-	if y > kMapHeight {
-		y = kMapHeight
-	} else if y < 0 {
-		y = 0
-	}
-
-	ai.status.X = x
-	ai.status.Y = y
-}
-
-func (ai *AIUser) doRotate(dt float64) {
-	var angle float64
-
-	if ai.status.Rotate == 2 {
-		angle = ai.status.Angle + 120*(dt/1000)
-	} else {
-		angle = ai.status.Angle - 120*(dt/1000)
-	}
-	if angle >= 360 {
-		angle = angle - 360
-	}
-	if angle < 0 {
-		angle = angle + 360
-	}
-
-	ai.status.Angle = angle
-}
-
 func (ai *AIUser) updatePosition(delta float64) {
-	ai.doRotate(delta)
-	ai.doMove(delta)
 }
 
 // for Player
@@ -108,8 +53,14 @@ func (ai *AIUser) ActRotate(dir int) {
 	ai.status.Rotate = dir
 }
 
-func (ai *AIUser) ActMove(dir int) {
-	ai.status.Move = dir
+func (ai *AIUser) ActMove(x, y float64) {
+	ai.status.Move = MOVE_FORWARD
+	ai.status.Rotate = ROTATE_LEFT
+	ai.status.DestX = x
+	ai.status.DestY = y
+	ai.updated = true
+
+	// fmt.Printf("ai move from %f,%f to %f,%f\n", ai.status.X, ai.status.Y, x, y)
 }
 
 func (ai *AIUser) ActShoot() error {

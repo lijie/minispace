@@ -15,6 +15,8 @@ const (
 	kCmdShipDead = 9
 	kCmdShipRestart = 10
 	kCmdShowPath = 11
+	kCmdSetTarget = 12
+	kCmdShipStop = 13
 )
 
 const (
@@ -28,6 +30,7 @@ const (
 	kEventKickClient = 3
 	kEventDBLoad = 4
 	kEventDBSave = 5
+	kEventRunFrame = 6
 )
 
 const (

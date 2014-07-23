@@ -4,41 +4,18 @@ import "math/rand"
 import "time"
 
 type aiSimpleAlgo struct {
-	shootDelta float64
-	rotateDelta float64
+	movedt float64
 	rander *rand.Rand
 }
 
-func (algo *aiSimpleAlgo) Update2(ai AIAction, dt float64) {
-	ai.ActMove(1)
-	ai.ActRotate(2)
-}
-
 func (algo *aiSimpleAlgo) Update(ai AIAction, dt float64) {
-	// always keep moving
-	ai.ActMove(1)
-	algo.rotateDelta += dt
-	algo.shootDelta += dt
-
-	if algo.rotateDelta >= 1000 {
-		var value uint64
-		value = uint64(algo.rander.Uint32()) * uint64(300) / uint64(^uint32(0))
-
-		if value <= 100 {
-			// just do right rotate
-			ai.ActRotate(2)
-		} else if value <= 200 {
-			ai.ActRotate(1)
-		} else {
-			ai.ActRotate(0)
-		}
-		algo.rotateDelta = 0
-	}
-
-	if algo.shootDelta >= 1000 {
-		// shoot if possible
-		ai.ActShoot()
-		algo.shootDelta = 0
+	if (algo.movedt <= 0) {
+		x := uint64(algo.rander.Uint32()) * uint64(960) / uint64(^uint32(0))
+		y := uint64(algo.rander.Uint32()) * uint64(540) / uint64(^uint32(0))
+		ai.ActMove(float64(x), float64(y))
+		algo.movedt = 5000
+	} else {
+		algo.movedt -= dt
 	}
 }
 

@@ -24,6 +24,7 @@ type Scene struct {
 	// bitmap for ship id
 	idmap int
 	enable bool
+	waitStart time.Time
 	// packet from ship
 	cli_chan chan *Packet
 	// for internal event
@@ -67,12 +68,15 @@ func (s *Scene) allocId() (int, error) {
 }
 
 func (s *Scene) doSceneEvent(e *Event) {
-	fmt.Printf("call doSceneEvent\n")
 	switch e.cmd {
 	case kEventAddPlayer:
 		s.addPlayer(e)
 	case kEventDelPlayer:
 		s.delPlayer(e)
+	case kEventRunFrame:
+		dt := time.Now().Sub(s.waitStart).Nanoseconds()
+		fmt.Printf("run frame by event, dt %d\n", dt)
+		// s.runFrame(float64(dt))
 	}
 }
 
@@ -113,6 +117,13 @@ func (s *Scene) delPlayer(e *Event) {
 	}
 
 	s.num--
+}
+
+func (s *Scene) StartRunFrame() {
+	cmd := &Event{
+		cmd: kEventRunFrame,
+	}
+	s.cmd_chan <- cmd
 }
 
 func (s *Scene) AddPlayer(u *Ship) (chan *Packet, error) {
@@ -276,6 +287,7 @@ func (s *Scene) addPlayer(e *Event) {
 	s.notifyAddUser(e.sender)
 
 	if miniConfig.EnableAI && s.num < 8 {
+		fmt.Printf("add %d ai\n", 8 - s.num)
 		s.addai(8 - s.num)
 		// s.addai(1)
 	}
@@ -403,11 +415,14 @@ func (s *Scene) Run() {
 	var p *Packet
 	var e *Event
 
+	tickch := time.Tick(SceneSleepTime * time.Millisecond)
+
 	for s.enable {
+		s.waitStart = time.Now()
 		select {
 		case p = <-s.cli_chan:
 			p.client.ProcMsg(&p.Msg)
-		case _ = <- timer_ch:
+		case _ = <- tickch:
 			s.runFrame(float64(SceneSleepTime))
 		case e = <- s.cmd_chan:
 			s.doSceneEvent(e)
