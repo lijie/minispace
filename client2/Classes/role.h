@@ -96,6 +96,7 @@ class Role {
   void UpdateLoc(float dt);
   void Move(float dt);
   void Rotate(float dt);
+  void UpdateMove(double dt);
   void Init(CCNode *parent, const CCPoint loc);
   CCSprite * sprite() { return sp_; }
   bool dead() { return dead_; }
@@ -106,10 +107,21 @@ class Role {
   void set_dest(const CCPoint loc) { dest_loc_ = loc; move_ = MOVE_FORWARD; rotate_ = ROTATE_LEFT;}
   void set_rotate_dt(double dt1) { rotate_dt_= dt1; }
   void set_move(int move, int rotate) { move_ = move; rotate_ = rotate; }
+  void set_target(Role *target) { target_ = target; }
+  bool ContainTouch(CCTouch *touch);
+  bool TrySetTarget(CCTouch *touch);
+  void TrySetDest(const CCPoint& dest);
   Role();
 
  private:
+  CCRect rect(void) {
+    CCSize s = sp_->getTexture()->getContentSize();
+    return CCRectMake(-s.width / 2, -s.height / 2, s.width, s.height);
+  }
+  void SendSetTarget(int id);
+  void doTarget();
   CCSprite *sp_;
+  Role *target_;
   CCNode *parent_;
   CCPoint loc_;
   CCPoint dest_loc_;

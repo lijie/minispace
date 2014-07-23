@@ -20,6 +20,7 @@ Role::Role() {
   syncstep_ = 0;
   move_dt_ = 0;
   rotate_dt_ = 0;
+  target_ = NULL;
 }
 
 Role * Role::FindByID(int id) {
@@ -122,7 +123,7 @@ void Role::Die() {
 void Role::Rotate(float dt) {
   double angle;
 
-  if (move_ == MOVE_NONE || rotate_ == ROTATE_NONE)
+  if (rotate_ == ROTATE_NONE)
     return;
 
   CalcDestRotate(dest_loc_);
@@ -235,11 +236,14 @@ void Role::SendUpdate() {
 }
 
 void Role::ShootBeam(int beamid) {
+#if 0
   if (isself_) {
     beamid = beampool_.FindID();
     if (beamid == -1)
       return;
   }
+#endif
+  CCLOG("shot beam %d\n", beamid);
 
   CCSprite *_beam = CCSprite::create("beam-1x.png");
   _beam->setPosition(sp_->getPosition());
@@ -264,7 +268,7 @@ void Role::ShootBeam(int beamid) {
 }
 
 void Role::StopBeam(int beamid) {
-  CCLOG("stop ship %d beam %d\n", id_, beamid);
+  // CCLOG("stop ship %d beam %d\n", id_, beamid);
   beampool_.RemoveBeam(beamid);
 }
 
@@ -282,7 +286,9 @@ void Role::Move(float dt) {
   move_dt_ -= dt;
   if (move_dt_ < 0) {
     move_ = MOVE_NONE;
+    move_dt_ = 0;
     sp_->setPosition(dest_loc_);
+    return;
   }
 
   float angle = sp_->getRotation() + 90;
@@ -311,4 +317,77 @@ void Role::Move(float dt) {
 
   sp_->setPosition(ccp(x, y));
   // this.moveRadar(x, y);
+}
+
+bool Role::ContainTouch(CCTouch *touch) {
+  return rect().containsPoint(sp_->convertTouchToNodeSpaceAR(touch));
+}
+
+void Role::SendSetTarget(int id) {
+  Json::Value obj;
+  Json::Value body;
+
+  body["x"] = sp_->getPositionX();
+  body["y"] = sp_->getPositionY();
+  body["angle"] = sp_->getRotation();
+  body["rotate"] = rotate_;
+  body["move"] = move_;
+  body["targetid"] = id;
+
+  obj["cmd"] = 12;
+  obj["userid"] = "test";
+  obj["body"] = body;
+
+  NetNode::Shared()->Send(obj);
+}
+
+bool Role::TrySetTarget(CCTouch *touch) {
+  for (int i = 0; i < 16; i++) {
+    Role *r = Role::FindByID(i);
+    if (r == NULL || r->sprite() == NULL || r->dead())
+      continue;
+
+    if (r == this)
+      continue;
+
+    if (r->ContainTouch(touch)) {
+      CCLOG("set target %d", r->id());
+      set_target(r);
+      SendSetTarget(r->id());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void Role::TrySetDest(const CCPoint& dest) {
+  target_ = NULL;
+  set_dest(dest);
+  SendUpdate();
+}
+
+void Role::doTarget() {
+  if (target_ == NULL)
+     return;
+  if (target_->dead()) {
+    target_ = NULL;
+    return;
+  }
+
+  CCPoint dest = target_->sprite()->getPosition();
+  CCPoint loc2 = sp_->getPosition();
+  double y = dest.y - loc2.y;
+  double x = dest.x - loc2.x;
+  double dist = sqrt(y*y + x*x);
+  set_dest(target_->sprite()->getPosition());
+  if (dist < 100) { 
+    move_ = MOVE_NONE;
+  }
+}
+
+void Role::UpdateMove(double dt) {
+  doTarget();
+  Rotate(dt);
+  Move(dt);
 }
