@@ -235,7 +235,7 @@ void Role::SendUpdate() {
   NetNode::Shared()->Send(obj);
 }
 
-void Role::ShootBeam(int beamid) {
+void Role::ShootBeam(int beamid, float x, float y, float angle) {
 #if 0
   if (isself_) {
     beamid = beampool_.FindID();
@@ -246,17 +246,16 @@ void Role::ShootBeam(int beamid) {
   CCLOG("shot beam %d\n", beamid);
 
   CCSprite *_beam = CCSprite::create("beam-1x.png");
-  _beam->setPosition(sp_->getPosition());
+  _beam->setPosition(ccp(x, y));
   parent_->addChild(_beam, 25);
 
-  float angle = sp_->getRotation() + 90;
-  _beam->setRotation(sp_->getRotation());
+  _beam->setRotation(angle);
 
-  float x = 1000 * sin(angle / 180 * M_PI);
-  float y = 1000 * cos(angle / 180 * M_PI);
+  float x1 = 1000 * sin((angle + 90) / 180 * M_PI);
+  float y1 = 1000 * cos((angle + 90) / 180 * M_PI);
 
   CCSequence *action = CCSequence::create(
-      CCMoveBy::create(3.0, ccp(x, y)),
+      CCMoveBy::create(3.0, ccp(x1, y1)),
       CCCallFuncND::create((CCObject *)&beampool_, callfuncND_selector(BeamPool::TestBeam), _beam),
       // CCRemoveSelf::create(true),
       NULL);

@@ -133,7 +133,8 @@ void LoginScene::startConnect() {
   MyConn *conn = new MyConn;
   conn->sc_ = this;
 
-  NetNode::Shared()->Connect("ws://10.20.96.187:12345/minispace", conn);
+  //NetNode::Shared()->Connect("ws://10.20.96.187:12345/minispace", conn);
+  NetNode::Shared()->Connect("ws://jayhome.com:12345/minispace", conn);
   state_ = LOGIN_CONNECT;
 }
 

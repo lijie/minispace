@@ -143,12 +143,12 @@ void ShootBeamCall::Proc(Json::Value *value) {
   int move = data["move"].asInt();
   int rotate = data["rotate"].asInt();
   int beamid = data["beamid"].asInt();
-  o->set_loc(ccp(x, y));
-  o->set_angle(angle);
-  o->set_move(move, rotate);
-  o->FlushLoc();
+  // o->set_loc(ccp(x, y));
+  // o->set_angle(angle);
+  // o->set_move(move, rotate);
+  // o->FlushLoc();
   // do shoot
-  o->ShootBeam(beamid);
+  o->ShootBeam(beamid, x, y, angle);
 }
 
 class StopBeamCall : public NetCall {
@@ -298,6 +298,15 @@ void GameLayer::onEnter() {
   // radar_->setPosition(ccp(840, 520));
 
   InitSelf();
+  CCProgressTimer *bloodbar = CCProgressTimer::create(CCSprite::create("hp.png"));
+  bloodbar->setType(kCCProgressTimerTypeBar);
+  bloodbar->setMidpoint(ccp(0, 0));
+  bloodbar->setBarChangeRate(ccp(1, 0));
+  bloodbar->setAnchorPoint(ccp(0, 0));
+  bloodbar->setPosition(ccp(40, 500));
+  bloodbar->setPercentage(100);
+  Role::Self()->set_bloodbar(bloodbar);
+  addChild(bloodbar, 30);
 
   UserNotifyCall *call = new UserNotifyCall;
   call->npc_ = npc_;
@@ -312,7 +321,7 @@ void GameLayer::onEnter() {
   NetNode::Shared()->AddCallback(8, new ShootBeamCall);
   NetNode::Shared()->AddCallback(9, new ShipDeadCall);
   NetNode::Shared()->AddCallback(10, new ShipRestartCall);
-  NetNode::Shared()->AddCallback(11, new ShowPathCall(showsp_));
+  // NetNode::Shared()->AddCallback(11, new ShowPathCall(showsp_));
 
   schedule(schedule_selector(GameLayer::TimeCallback), 0.05, -1, 0);
 }

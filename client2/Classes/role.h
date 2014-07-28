@@ -91,7 +91,7 @@ class Role {
   void Restart();
   void Die();
   void StopBeam(int beamid);
-  void ShootBeam(int beamid);
+  void ShootBeam(int beamid, float x, float y, float angle);
   void FlushLoc();
   void UpdateLoc(float dt);
   void Move(float dt);
@@ -108,6 +108,7 @@ class Role {
   void set_rotate_dt(double dt1) { rotate_dt_= dt1; }
   void set_move(int move, int rotate) { move_ = move; rotate_ = rotate; }
   void set_target(Role *target) { target_ = target; }
+  void set_bloodbar(CCProgressTimer *b) { bloodbar_ = b; }
   bool ContainTouch(CCTouch *touch);
   bool TrySetTarget(CCTouch *touch);
   void TrySetDest(const CCPoint& dest);
@@ -122,6 +123,7 @@ class Role {
   void doTarget();
   CCSprite *sp_;
   Role *target_;
+  CCProgressTimer *bloodbar_;
   CCNode *parent_;
   CCPoint loc_;
   CCPoint dest_loc_;
