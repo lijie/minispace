@@ -258,9 +258,11 @@ void GameLayer::ccTouchesEnded(CCSet *touches, CCEvent *event) {
   CCSetIterator iter = touches->begin();
   for (; iter != touches->end(); iter++) {
     CCTouch* touch = (CCTouch*)(*iter);
+    if (Role::Self()->TrySetTarget(touch)) {
+      continue;
+    }
     CCPoint loc = touch->getLocation();
-    Role::Self()->set_dest(loc);
-    Role::Self()->SendUpdate();
+    Role::Self()->TrySetDest(loc);
   }
 }
 
@@ -291,9 +293,9 @@ void GameLayer::onEnter() {
   bg_ = BgLayer::create();
   addChild(bg_, 5);
 
-  radar_ = CCSprite::create("radio.png");
-  addChild(radar_, 40);
-  radar_->setPosition(ccp(840, 520));
+  // radar_ = CCSprite::create("radio.png");
+  // addChild(radar_, 40);
+  // radar_->setPosition(ccp(840, 520));
 
   InitSelf();
 
@@ -326,8 +328,7 @@ void GameLayer::MoveShips(float dt) {
       continue;
 
     // r->UpdateLoc(dt);
-    r->Rotate(dt);
-    r->Move(dt);
+    r->UpdateMove(dt);
   }
 }
 
