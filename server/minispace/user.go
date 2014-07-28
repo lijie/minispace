@@ -1,37 +1,42 @@
 package minispace
 
-import _ "code.google.com/p/go.net/websocket"
-import "fmt"
-import "time"
-import "sync"
-import _ "math"
+import (
+	_ "code.google.com/p/go.net/websocket"
+	"fmt"
+	_ "math"
+	"sync"
+	"time"
+)
 
+// A UserDb is a struct for saving human data to database
 type UserDb struct {
-	Name string `bson:"_id"`
-	Pass string
+	Name      string `bson:"_id"`
+	Pass      string
 	LoginTime int64
-	RegTime int64
+	RegTime   int64
 	BestScore int
-	Win int
-	Lose int
+	Win       int
+	Lose      int
 }
 
+// A ShipAttr is ... no use yet
 type ShipAttr struct {
 	lv, speed, hp, beam int
 }
 
+// A User is a struct for a human player
 type User struct {
 	userdb UserDb
 	Ship
 	rotatedt float64
-	movedt float64
-	enable bool
-	login bool
-	dirty bool
-	eventch chan *Event
-	msgch chan *Msg
-	lasterr int
-	conn *Client
+	movedt   float64
+	enable   bool
+	login    bool
+	dirty    bool
+	eventch  chan *Event
+	msgch    chan *Msg
+	lasterr  int
+	conn     *Client
 }
 
 func (u *User) UserEventRoutine() {
@@ -40,7 +45,7 @@ func (u *User) UserEventRoutine() {
 
 	for u.enable {
 		select {
-		case event = <- u.eventch:
+		case event = <-u.eventch:
 			// be kicked
 			if event.cmd == kEventKickClient {
 				fmt.Printf("%s be kicked by %s\n",
@@ -48,12 +53,12 @@ func (u *User) UserEventRoutine() {
 				// del current player from scene
 				u.scene.DelPlayer(&u.Ship)
 				u.enable = false
-				u.Logout()
+				u.logout()
 				if event.callback != nil {
 					event.callback(event, nil)
 				}
 			}
-		case msg = <- u.msgch:
+		case msg = <-u.msgch:
 			u.conn.Reply(msg)
 		}
 	}
@@ -61,6 +66,7 @@ func (u *User) UserEventRoutine() {
 	fmt.Printf("user %s end event loop\n", u.Name())
 }
 
+// KickName kicks a player to offline by name
 func (u *User) KickName(name string) {
 	other := SearchOnline(name)
 	if other != nil {
@@ -68,9 +74,10 @@ func (u *User) KickName(name string) {
 	}
 }
 
+// KickPlayer kicks a player to offline
 func (u *User) KickPlayer(other *User) {
 	cmd := &Event{
-		cmd: kEventKickClient,
+		cmd:    kEventKickClient,
 		sender: &u.Ship,
 	}
 
@@ -88,15 +95,15 @@ func (u *User) KickPlayer(other *User) {
 	lock.Lock()
 }
 
-func (u *User) SetErrCode(code int) {
+func (u *User) setErrCode(code int) {
 	u.lasterr = code
 }
 
-func (u *User) MarkDirty() {
+func (u *User) markDirty() {
 	u.dirty = true
 }
 
-func (u *User) Logout() {
+func (u *User) logout() {
 	DeleteOnline(u.userdb.Name)
 
 	if u.dirty {
@@ -115,7 +122,7 @@ func init() {
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
 	ClientProcRegister(kCmdUserAction, procUserAction)
 	ClientProcRegister(kCmdSetTarget, procSetTarget)
-//	ClientProcRegister(kCmdShipRestart, procShipRestart)
+	//	ClientProcRegister(kCmdShipRestart, procShipRestart)
 }
 
 func procSetTarget(user *User, msg *Msg) int {
@@ -164,7 +171,7 @@ func loadUser(user *User, userid string, password string) int {
 		// new user
 		newbie = true
 	} else if err != nil {
-		user.SetErrCode(ErrCodeDBError)
+		user.setErrCode(ErrCodeDBError)
 		return PROC_ERR
 	}
 	fmt.Printf("load db done\n")
@@ -174,7 +181,7 @@ func loadUser(user *User, userid string, password string) int {
 		// check password
 		fmt.Printf("registed user %#v\n", user.userdb)
 		user.userdb.LoginTime = now.Unix()
-		user.MarkDirty()
+		user.markDirty()
 
 		// TODO: use md5 at least...
 		if password != user.userdb.Pass {
@@ -192,7 +199,7 @@ func loadUser(user *User, userid string, password string) int {
 		err = SharedDB().SyncSave(userid, &user.userdb)
 		if err != nil {
 			fmt.Printf("User %s save db failed\n", user.userdb.Name)
-			user.SetErrCode(ErrCodeDBError)
+			user.setErrCode(ErrCodeDBError)
 			return PROC_ERR
 		}
 	}
@@ -216,7 +223,7 @@ func procUserLogin(user *User, msg *Msg) int {
 	password, ok := msg.Body["password"]
 	if !ok || len(password.(string)) < 3 {
 		fmt.Printf("client %#v no password or passwoard too short, fail\n", user)
-		user.SetErrCode(ErrCodeInvalidProto)
+		user.setErrCode(ErrCodeInvalidProto)
 		return PROC_ERR
 	}
 
@@ -291,7 +298,7 @@ func (user *User) Name() string {
 
 func (u *User) Update(delta float64) {
 	// ms convert to second
-	u.sendPath()
+	// u.sendPath()
 }
 
 func (u *User) sendPath() {

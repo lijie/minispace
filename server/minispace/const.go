@@ -17,6 +17,7 @@ const (
 	kCmdShowPath = 11
 	kCmdSetTarget = 12
 	kCmdShipStop = 13
+	kCmdGameOver = 14
 )
 
 const (

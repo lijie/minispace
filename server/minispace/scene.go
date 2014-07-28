@@ -359,16 +359,16 @@ func (s *Scene) checkHitAll(shooter *Ship, l *List) {
 func (s *Scene) checkDead(ship *Ship, delta float64) {
 	ship.deadCD += delta
 
-	if ship.deadCD > 5000 {
-		// restart
-		ship.deadCD = 0
-		ship.status.Hp = 100
-		ship.stateList.RemoveSelf()
-		s.activeList.PushBack(&ship.stateList)
-		ship.SetActive()
-		ship.scene.BroadProto(ship, false, kCmdShipRestart, "data", ship.status.Id)
-		fmt.Printf("ship %d restart\n", ship.status.Id)
-	}
+//	if ship.deadCD > 5000 {
+//		// restart
+//		ship.deadCD = 0
+//		ship.status.Hp = 100
+//		ship.stateList.RemoveSelf()
+//		s.activeList.PushBack(&ship.stateList)
+//		ship.SetActive()
+//		ship.scene.BroadProto(ship, false, kCmdShipRestart, "data", ship.status.Id)
+//		fmt.Printf("ship %d restart\n", ship.status.Id)
+//	}
 }
 
 func (s *Scene) runFrame(delta float64) {

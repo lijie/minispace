@@ -1,10 +1,12 @@
 package minispace
 
-import "fmt"
-import "math"
-import "container/list"
+import (
+	"container/list"
+	"fmt"
+	"math"
+)
 
-// better Player interface
+// Player2 is an interface for all kind of player
 type Player2 interface {
 	SendMsg(msg *Msg) error
 	Update(dt float64)
@@ -13,6 +15,7 @@ type Player2 interface {
 	Win()
 }
 
+// A ShipStatus saves current ship status
 type ShipStatus struct {
 	// position
 	X     float64 `json:"x"`
@@ -31,6 +34,7 @@ type ShipStatus struct {
 	Id int `json:"id"`
 }
 
+// A Ship is a base object for all player
 type Ship struct {
 	Player2
 	status ShipStatus
@@ -102,6 +106,7 @@ func (b *Beam) Update(delta float64) bool {
 	return true
 }
 
+// SendMsg sends msg to client
 func (ship *Ship) SendMsg(msg *Msg) error {
 	return ship.Player2.SendMsg(msg)
 }
@@ -140,6 +145,7 @@ func (ship *Ship) doShoot(dt float64) {
 	ship.shootcd = 700
 }
 
+// Update will run for per frame
 func (ship *Ship) Update(dt float64) {
 	ship.updateBeam(dt)
 
@@ -151,6 +157,7 @@ func (ship *Ship) Update(dt float64) {
 	ship.Player2.Update(dt)
 }
 
+// Name returns player's name
 func (ship *Ship) Name() string {
 	return ship.Player2.Name()
 }
@@ -159,27 +166,33 @@ func (p *Ship) SetActive() {
 	p.state = kStateActive
 }
 
+// Dead tells player you are dead
 func (p *Ship) Dead() {
 	p.state = kStateDead
 	p.Player2.Dead()
 }
 
+// Win tells player you win
 func (p *Ship) Win() {
 	p.Player2.Win()
 }
 
+// SetScene tells player whiche scene you are in
 func (p *Ship) SetScene(s *Scene) {
 	p.scene = s
 }
 
+// SetUserId tells player which id he owns
 func (p *Ship) SetUserId(id int) {
 	p.status.Id = id
 }
 
+// UserId returns player's id
 func (p *Ship) UserId() int {
 	return p.status.Id
 }
 
+// HpDown will be called when player is shooted
 func (p *Ship) HpDown(value int) int {
 	p.status.Hp -= float64(value)
 	if p.status.Hp < 0 {
@@ -188,10 +201,12 @@ func (p *Ship) HpDown(value int) int {
 	return int(p.status.Hp)
 }
 
+// Status returns ship status
 func (p *Ship) Status() *ShipStatus {
 	return &p.status
 }
 
+// ShipCheckHit checks if target be shooted by sender
 func ShipCheckHit(sender *Ship, target *Ship) bool {
 	if sender.status.Id == target.status.Id {
 		return false
@@ -432,6 +447,7 @@ func (ship *Ship) doMove(dt float64) {
 	st.Y = y
 }
 
+// SetTarget tells which enemy we should shoot
 func (ship *Ship) SetTarget(id int) {
 	s := ship.scene
 	for p := s.activeList.Next(); p != &s.activeList; p = p.Next() {
