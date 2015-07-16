@@ -2,24 +2,27 @@
 
 package minispace
 
-import "code.google.com/p/go.net/websocket"
-import _ "time"
-import "errors"
-import "fmt"
+import (
+	"code.google.com/p/go.net/websocket"
+	"errors"
+	"fmt"
+	"syscall"
+	_ "time"
+)
 
 const (
-	PROC_OK = 0
-	PROC_ERR = 1
+	PROC_OK   = 0
+	PROC_ERR  = 1
 	PROC_KICK = 2
 )
 
 // Msg from client
 type Msg struct {
-	Cmd float64 `json:"cmd"`
-	ErrCode float64 `json:"errcode"`
-	Seq float64 `json:"seq"`
-	Userid string `json:"userid"`
-	Body map[string]interface{} `json:"body"`
+	Cmd     float64                `json:"cmd"`
+	ErrCode float64                `json:"errcode"`
+	Seq     float64                `json:"seq"`
+	Userid  string                 `json:"userid"`
+	Body    map[string]interface{} `json:"body"`
 }
 
 // Msg wrapper for scene
@@ -51,6 +54,7 @@ type Client struct {
 type ClientProc func(*User, *Msg) int
 
 var procFuncArray [128]ClientProc
+
 // Register your client cmd proc function
 func ClientProcRegister(cmd int, proc ClientProc) error {
 	if cmd >= 128 {
@@ -81,7 +85,7 @@ func (c *Client) readPacket(conn *websocket.Conn) (*Packet, error) {
 }
 
 func (c *Client) Reply(msg *Msg) {
-//	fmt.Printf("reply %v\n", msg)
+	//	fmt.Printf("reply %v\n", msg)
 	websocket.JSON.Send(c.conn, msg)
 }
 
@@ -121,6 +125,35 @@ func (c *Client) forwardRoutine() {
 	}
 }
 
+func (c *Client) detectDelay() error {
+	var tv syscall.Timeval
+	syscall.Gettimeofday(&tv)
+	c.t1 = tv.Sec*1000000 + tv.Usec
+
+	req := NewMsg()
+	req.Cmd = kCmdDetectDelay
+	c.Reply(req)
+
+	p, err := c.readPacket(c.conn)
+	if err != nil {
+		return err
+	}
+
+	if p.Cmd != kCmdDetectDelay {
+		fmt.Printf("detect time error, close client\n")
+		return ErrDetectTime
+	}
+
+	if c.ProcMsg(&p.Msg) != PROC_OK {
+		// login failed
+		// should reply error
+		fmt.Printf("detect time failed, close client\n")
+		return ErrDetectTime
+	}
+
+	return nil
+}
+
 func (c *Client) Proc() {
 	defer c.Close()
 
@@ -141,6 +174,10 @@ func (c *Client) Proc() {
 		// login failed
 		// should reply error
 		fmt.Printf("login failed, close client\n")
+		return
+	}
+
+	if c.detectDelay() != nil {
 		return
 	}
 

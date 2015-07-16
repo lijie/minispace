@@ -11,10 +11,10 @@ const (
 )
 
 type UserDb struct {
-	Name string
-	Pass string
+	Name      string
+	Pass      string
 	LoginTime int
-	RegTime int
+	RegTime   int
 	BestScore int
 }
 
@@ -24,11 +24,11 @@ type ScoreBoard struct {
 }
 
 type query struct {
-	op int
-	key string
-	data []byte
+	op        int
+	key       string
+	data      []byte
 	replyFunc func(relyData []byte)
-	err error
+	err       error
 }
 
 func (s *ScoreBoard) nextQuery() *query {
@@ -118,9 +118,9 @@ func (s *ScoreBoard) Set(key string, data []byte) error {
 
 func (s *ScoreBoard) newPool(server string) {
 	return &redis.Pool{
-		MaxIdle: 16,
+		MaxIdle:     16,
 		IdleTimeout: 300 * time.Second,
-		Dial: func()(redis.Conn, error) {
+		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", server)
 			if err != nil {
 				return nil, err

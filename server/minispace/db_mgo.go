@@ -8,12 +8,12 @@ import "labix.org/v2/mgo/bson"
 
 type SpaceDB struct {
 	session *mgo.Session
-	ip string
+	ip      string
 	eventch chan *Event
 }
 
 type DBEventData struct {
-	key string
+	key  string
 	data interface{}
 }
 
@@ -42,7 +42,7 @@ func (s *SpaceDB) SyncSave(name string, data interface{}) error {
 
 func (s *SpaceDB) syncEvent(cmd int, name string, data interface{}) error {
 	dbe := &DBEventData{
-		key: name,
+		key:  name,
 		data: data,
 	}
 
@@ -50,7 +50,7 @@ func (s *SpaceDB) syncEvent(cmd int, name string, data interface{}) error {
 	var dberr error
 
 	event := &Event{
-		cmd: cmd,
+		cmd:  cmd,
 		data: dbe,
 		callback: func(e *Event, err error) {
 			dberr = err
@@ -107,7 +107,7 @@ func (s *SpaceDB) load(name string, data interface{}) error {
 
 func (s *SpaceDB) save(name string, data interface{}) error {
 	c := s.session.DB("minispace").C("user")
-	_, err := c.Upsert(bson.M{"_id":name}, data)
+	_, err := c.Upsert(bson.M{"_id": name}, data)
 
 	if err != nil {
 		return err
@@ -118,9 +118,9 @@ func (s *SpaceDB) save(name string, data interface{}) error {
 
 var sharedSpaceDB *SpaceDB
 
-func NewSpaceDB(ip string) (*SpaceDB) {
+func NewSpaceDB(ip string) *SpaceDB {
 	db := &SpaceDB{
-		ip: ip,
+		ip:      ip,
 		eventch: make(chan *Event, 64),
 	}
 	return db
@@ -144,7 +144,7 @@ func (s *SpaceDB) dbFlushRoutine() {
 	var e *Event
 
 	for {
-		e =<- s.eventch
+		e = <-s.eventch
 		if e == nil {
 			continue
 		}

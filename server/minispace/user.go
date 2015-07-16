@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "math"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -28,15 +29,17 @@ type ShipAttr struct {
 type User struct {
 	userdb UserDb
 	Ship
-	rotatedt float64
-	movedt   float64
-	enable   bool
-	login    bool
-	dirty    bool
-	eventch  chan *Event
-	msgch    chan *Msg
-	lasterr  int
-	conn     *Client
+	rotatedt   float64
+	movedt     float64
+	enable     bool
+	login      bool
+	dirty      bool
+	eventch    chan *Event
+	msgch      chan *Msg
+	lasterr    int
+	t1         int64
+	timeOffset int64
+	conn       *Client
 }
 
 func (u *User) UserEventRoutine() {
@@ -122,7 +125,7 @@ func init() {
 	ClientProcRegister(kCmdUserLogin, procUserLogin)
 	ClientProcRegister(kCmdUserAction, procUserAction)
 	ClientProcRegister(kCmdSetTarget, procSetTarget)
-	//	ClientProcRegister(kCmdShipRestart, procShipRestart)
+	ClientProcRegister(kCmdDetectDelay, procDetectDelay)
 }
 
 func procSetTarget(user *User, msg *Msg) int {
@@ -207,6 +210,23 @@ func loadUser(user *User, userid string, password string) int {
 	return PROC_OK
 }
 
+func procDetectDelay(user *User, msg *Msg) int {
+	sec := int64(msg.Body["sec"].(float64))
+	usec := int64(msg.Body["usec"].(float64))
+	t2 := sec*1000000 + usec
+
+	var tv syscall.Timeval
+	syscall.Gettimeofday(&tv)
+	t3 := tv.Sec*1000000 + tv.Usec
+
+	delay := (t3 - user.t1) / 2
+	user.timeOffset = t3 - delay - t2
+
+	fmt.Printf("user %s t1 %d t2 %d t3 %d delay %d timeoffset %d\n",
+		user.userdb.Name, user.t1, t2, t3, delay, user.timeOffset)
+	return PROC_OK
+}
+
 func procUserLogin(user *User, msg *Msg) int {
 	if user.login {
 		// repeat login request is error
@@ -266,7 +286,7 @@ func procUserAction(user *User, msg *Msg) int {
 	act := int(msg.Body["act"].(float64))
 	if act == 1 {
 		beamid := int(msg.Body["beamid"].(float64))
-		err := user.AddBeam(beamid)
+		err, _ := user.AddBeam(beamid)
 		if err != nil {
 			return PROC_ERR
 		}

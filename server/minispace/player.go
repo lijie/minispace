@@ -34,6 +34,12 @@ type ShipStatus struct {
 	Id int `json:"id"`
 }
 
+const (
+	kShipShootPendig   = 0
+	kShipRotatePending = 1
+	kShipMovePending   = 2
+)
+
 // A Ship is a base object for all player
 type Ship struct {
 	Player2
@@ -52,6 +58,8 @@ type Ship struct {
 	state     int
 	updated   bool
 	target    *Ship
+	// catch delay of networking
+	pendingdt [3]float64
 }
 
 type Rect struct {
@@ -145,16 +153,20 @@ func (ship *Ship) doShoot(dt float64) {
 	ship.shootcd = 700
 }
 
-// Update will run for per frame
+// Update will run per frame
 func (ship *Ship) Update(dt float64) {
 	ship.updateBeam(dt)
-
 	ship.doTarget()
 	ship.doRotate(dt / 1000)
 	ship.doMove(dt / 1000)
-	ship.doShoot(dt)
+	// ship.doShoot(dt)
 
 	ship.Player2.Update(dt)
+
+	// if ship is stop, force update client's x,y,angle
+	// if ship.Move == MOVE_NONE && ship.Rotate == ROTATE_NONE {
+	// ship.scene.broadShipStatus()
+	// }
 }
 
 // Name returns player's name
@@ -267,12 +279,12 @@ func (ship *Ship) AddBeam2() error {
 	return nil
 }
 
-func (ship *Ship) AddBeam(beamid int) error {
+func (ship *Ship) AddBeam(beamid int) (error, *Beam) {
 	// check beamid is valid
 	if ((1 << uint(beamid)) & ship.beamMap) != 0 {
 		// error
 		fmt.Printf("beamid %d already used\n", beamid)
-		return ErrInvalidBeamID
+		return ErrInvalidBeamID, nil
 	}
 
 	// save beamid and beam
@@ -290,7 +302,7 @@ func (ship *Ship) AddBeam(beamid int) error {
 	}
 	data.ShipStatus = ship.status
 	ship.scene.BroadProto(ship, false, kCmdShootBeam, "data", data)
-	return nil
+	return nil, b
 }
 
 func (ship *Ship) calcDestRotate() {
@@ -343,6 +355,9 @@ func (ship *Ship) doRotate(dt float64) {
 	if st.Rotate == ROTATE_NONE {
 		return
 	}
+
+	dt = dt + ship.pendingdt[kShipRotatePending]
+	ship.pendingdt[kShipRotatePending] = 0
 
 	ship.calcDestRotate()
 	if ship.rotatedt <= 0 {
@@ -397,6 +412,9 @@ func (ship *Ship) doMove(dt float64) {
 	if st.Move == MOVE_NONE {
 		return
 	}
+
+	dt = dt + ship.pendingdt[kShipMovePending]
+	ship.pendingdt[kShipMovePending] = 0
 
 	ship.calcDestMove()
 	if ship.movedt <= 0 {
